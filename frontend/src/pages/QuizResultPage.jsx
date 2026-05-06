@@ -1,269 +1,287 @@
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import api from '../services/api'
-import { CheckCircle, XCircle, Trophy, RotateCcw, BookOpen, Clock, Crown, BarChart2 } from 'lucide-react'
+import {
+  CheckCircle2, XCircle, Minus, Trophy, RotateCcw, BookOpen,
+  Clock, Crown, BarChart2, ChevronDown, ChevronUp, Zap, Target, TrendingUp
+} from 'lucide-react'
 import toast from 'react-hot-toast'
+import { RadialBarChart, RadialBar, ResponsiveContainer, PieChart, Pie, Cell, Tooltip } from 'recharts'
 
+const fmt = (s) => `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`
+
+// ─── Score ring ───────────────────────────────────────────────
+function ScoreRing({ pct }) {
+  const color = pct >= 70 ? '#10b981' : pct >= 40 ? '#f59e0b' : '#ef4444'
+  const data = [{ value: pct, fill: color }, { value: 100 - pct, fill: '#f1f5f9' }]
+  return (
+    <div className="relative w-40 h-40 mx-auto">
+      <ResponsiveContainer width="100%" height="100%">
+        <PieChart>
+          <Pie data={data} cx="50%" cy="50%" innerRadius={52} outerRadius={70} startAngle={90} endAngle={-270} dataKey="value" strokeWidth={0}>
+            {data.map((_, i) => <Cell key={i} fill={data[i].fill} />)}
+          </Pie>
+        </PieChart>
+      </ResponsiveContainer>
+      <div className="absolute inset-0 flex flex-col items-center justify-center">
+        <span className="text-3xl font-black" style={{ color }}>{pct}%</span>
+        <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Score</span>
+      </div>
+    </div>
+  )
+}
+
+// ─── Individual question review ───────────────────────────────
+function QuestionReview({ q, ans, idx, bookmarks, onToggleBookmark }) {
+  const [open, setOpen] = useState(false)
+  const isCorrect = ans?.isCorrect
+  const skipped   = !ans?.selectedOption
+
+  return (
+    <div className={`bg-white rounded-2xl border-2 transition-all ${isCorrect ? 'border-emerald-100' : skipped ? 'border-slate-100' : 'border-rose-100'}`}>
+      {/* Header */}
+      <button onClick={() => setOpen(o => !o)} className="w-full p-5 flex items-start gap-4 text-left">
+        <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 mt-0.5 ${isCorrect ? 'bg-emerald-100' : skipped ? 'bg-slate-100' : 'bg-rose-100'}`}>
+          {isCorrect ? <CheckCircle2 size={18} className="text-emerald-600" /> : skipped ? <Minus size={18} className="text-slate-400" /> : <XCircle size={18} className="text-rose-500" />}
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 mb-1">
+            <span className="text-[10px] font-black text-slate-400 uppercase">Q{idx + 1}</span>
+            {q.difficulty && (
+              <span className={`px-1.5 py-0.5 text-[9px] font-black rounded uppercase ${q.difficulty === 'hard' ? 'bg-rose-50 text-rose-500' : q.difficulty === 'medium' ? 'bg-amber-50 text-amber-500' : 'bg-emerald-50 text-emerald-600'}`}>{q.difficulty}</span>
+            )}
+            <span className="text-[10px] text-slate-300">{q.marks > 0 ? `+${q.marks}` : ''} / {q.negativeMarking ?? '-1'}</span>
+          </div>
+          <p className="text-sm font-semibold text-slate-900 leading-relaxed line-clamp-2">{q.question}</p>
+        </div>
+        <div className="flex items-center gap-2 flex-shrink-0">
+          <button onClick={e => { e.stopPropagation(); onToggleBookmark(q._id) }}
+            className={`p-1.5 rounded-lg transition-all ${bookmarks.includes(q._id) ? 'bg-blue-100 text-blue-600' : 'text-slate-300 hover:text-blue-400'}`}>
+            <BookOpen size={14} />
+          </button>
+          {open ? <ChevronUp size={16} className="text-slate-400" /> : <ChevronDown size={16} className="text-slate-400" />}
+        </div>
+      </button>
+
+      {/* Expanded options */}
+      {open && (
+        <div className="px-5 pb-5 border-t border-slate-50 pt-4 space-y-3 animate-in fade-in duration-150">
+          {q.options ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {Object.entries(q.options).map(([key, val]) => {
+                const isSelected = ans?.selectedOption === key
+                const isCorrectOpt = String(q.correct).trim().toUpperCase() === key.toUpperCase()
+                return (
+                  <div key={key} className={`flex items-center gap-3 p-3 rounded-xl border-2 text-sm
+                    ${isCorrectOpt ? 'bg-emerald-50 border-emerald-300 text-emerald-800' : isSelected && !isCorrectOpt ? 'bg-rose-50 border-rose-300 text-rose-800' : 'bg-slate-50 border-transparent text-slate-600'}`}>
+                    <span className={`w-7 h-7 rounded-lg flex items-center justify-center text-xs font-black flex-shrink-0 ${isCorrectOpt ? 'bg-emerald-500 text-white' : isSelected ? 'bg-rose-500 text-white' : 'bg-slate-200 text-slate-500'}`}>{key}</span>
+                    <span className="flex-1 leading-snug">{val}</span>
+                    {isCorrectOpt && <CheckCircle2 size={14} className="text-emerald-500 flex-shrink-0" />}
+                    {isSelected && !isCorrectOpt && <XCircle size={14} className="text-rose-500 flex-shrink-0" />}
+                  </div>
+                )
+              })}
+            </div>
+          ) : (
+            <div className="p-3 rounded-xl bg-slate-50 text-sm">
+              <span className="text-slate-500">Your answer: <strong>{ans?.selectedOption || '—'}</strong></span>
+              <span className="mx-2">·</span>
+              <span className="text-emerald-600">Correct: <strong>{q.correct}</strong></span>
+            </div>
+          )}
+
+          {q.explanation && (
+            <div className="p-4 bg-indigo-50 rounded-xl border border-indigo-100 text-sm text-indigo-800 leading-relaxed">
+              <span className="font-black">💡 Explanation: </span>{q.explanation}
+            </div>
+          )}
+
+          {skipped && (
+            <p className="text-xs text-slate-400 italic">This question was skipped — no marks deducted.</p>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ─── Main ─────────────────────────────────────────────────────
 export default function QuizResultPage() {
   const { id } = useParams()
   const navigate = useNavigate()
-  const [result, setResult] = useState(null)
-  const [rank, setRank] = useState(null)
-  const [loading, setLoading] = useState(true)
+  const [result, setResult]     = useState(null)
+  const [rank, setRank]         = useState(null)
+  const [loading, setLoading]   = useState(true)
   const [bookmarks, setBookmarks] = useState([])
+  const [showAll, setShowAll]   = useState(false)
 
   useEffect(() => {
-    const fetchResult = async () => {
+    const load = async () => {
       try {
         const { data } = await api.get(`/quizzes/result/${id}`)
         setResult(data.data)
-        
-        // If it's a mock test, fetch leaderboard to find rank
         if (data.data.mockTestId) {
-          const lbRes = await api.get(`/mock-tests/${data.data.mockTestId}/leaderboard`)
-          const index = lbRes.data.data.findIndex(att => att._id === id)
-          if (index !== -1) setRank(index + 1)
+          const lb = await api.get(`/mock-tests/${data.data.mockTestId}/leaderboard`)
+          const idx = lb.data.data?.findIndex(a => a._id === id)
+          if (idx !== -1) setRank(idx + 1)
         }
       } catch { toast.error('Failed to load result') }
       finally { setLoading(false) }
     }
-
-    const fetchBookmarks = async () => {
+    const loadBM = async () => {
       try {
         const { data } = await api.get('/bookmarks')
         setBookmarks(data.data.filter(b => b.type === 'question').map(b => b.itemId?._id || b.itemId))
       } catch {}
     }
-
-    fetchResult()
-    fetchBookmarks()
+    load(); loadBM()
   }, [id])
 
-  const toggleBookmark = async (qid) => {
-    const isBookmarked = bookmarks.includes(qid);
+  const toggleBM = async (qid) => {
+    const isB = bookmarks.includes(qid)
     try {
-      if (isBookmarked) {
-        await api.delete(`/bookmarks/question/${qid}`);
-        setBookmarks(prev => prev.filter(id => id !== qid));
-        toast.success('Bookmark removed');
-      } else {
-        await api.post(`/bookmarks/question/${qid}`);
-        setBookmarks(prev => [...prev, qid]);
-        toast.success('Question bookmarked!');
-      }
-    } catch { toast.error('Failed to update bookmark') }
+      if (isB) { await api.delete(`/bookmarks/question/${qid}`); setBookmarks(p => p.filter(x => x !== qid)) }
+      else { await api.post(`/bookmarks/question/${qid}`); setBookmarks(p => [...p, qid]) }
+      toast.success(isB ? 'Removed' : 'Bookmarked!')
+    } catch { toast.error('Failed') }
   }
 
   if (loading) return (
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', background: '#f8fafc' }}>
-      <div style={{ width: 32, height: 32, border: '3px solid #e2e8f0', borderTopColor: '#4f46e5', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} />
+    <div className="min-h-full flex items-center justify-center bg-[#f8fafc]">
+      <div className="w-12 h-12 relative">
+        <div className="absolute inset-0 border-4 border-slate-200 rounded-full" />
+        <div className="absolute inset-0 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
+      </div>
     </div>
   )
 
   if (!result) return (
-    <div className="p-6 text-center">
-      <p style={{ color: '#64748b' }}>Result not found.</p>
-      <button onClick={() => navigate('/library')} className="btn-primary mt-4 py-2 px-4">Go to Library</button>
+    <div className="min-h-full flex flex-col items-center justify-center gap-4 p-8">
+      <p className="text-slate-400">Result not found.</p>
+      <button onClick={() => navigate('/quiz')} className="px-5 py-2 bg-blue-600 text-white rounded-xl text-sm font-bold">Back to Quiz</button>
     </div>
   )
 
   const { questions, xpAwarded, obtainedMarks, totalMarks, accuracy, correct, wrong, skipped, timeTakenSeconds, mode } = result
+  const pct   = totalMarks > 0 ? Math.round((obtainedMarks / totalMarks) * 100) : 0
+  const grade = pct >= 90 ? { l: 'Outstanding!', c: 'text-emerald-600' } : pct >= 70 ? { l: 'Great Job!', c: 'text-blue-600' } : pct >= 40 ? { l: 'Keep Practicing!', c: 'text-amber-600' } : { l: 'Needs Improvement', c: 'text-rose-600' }
 
-  const qMap = {}
-  questions?.forEach((q) => { qMap[q._id] = q })
   const ansMap = {}
-  result.answers?.forEach((a) => { ansMap[a.questionId] = a })
+  result.answers?.forEach(a => { ansMap[a.questionId] = a })
 
-  const pct = totalMarks > 0 ? Math.round((obtainedMarks / totalMarks) * 100) : 0
-  const color = pct >= 70 ? '#10b981' : pct >= 40 ? '#f59e0b' : '#ef4444'
-
-  const fmt = (s) => `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`
+  const displayed = showAll ? questions : questions?.slice(0, 5)
 
   return (
-    <div style={{ padding: '32px', maxWidth: '800px', margin: '0 auto' }}>
-      
-      {/* ── Summary Card ── */}
-      <div className="card" style={{ padding: '32px', textAlign: 'center', marginBottom: '24px' }}>
-        <div style={{ textTransform: 'uppercase', fontSize: 12, fontWeight: 700, color: '#64748b', letterSpacing: 1, marginBottom: 16 }}>
-          {mode} Mode Complete
-        </div>
-        
-        <div style={{ width: 96, height: 96, borderRadius: '50%', margin: '0 auto 16px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: `${color}15`, border: `4px solid ${color}` }}>
-          <span style={{ fontSize: 28, fontWeight: 900, color }}>{pct}%</span>
-        </div>
-        
-        <h1 style={{ fontSize: 24, fontWeight: 800, color: '#0f172a', marginBottom: 4 }}>Quiz Submitted!</h1>
-        <p style={{ fontSize: 15, color: '#64748b', marginBottom: 20 }}>
-          {obtainedMarks?.toFixed(1)} / {totalMarks} marks scored
-        </p>
-        
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, background: '#f8fafc', padding: 16, borderRadius: 12, marginBottom: 24 }}>
-          <div><div style={{ fontSize: 12, color: '#64748b', fontWeight: 600 }}>Correct</div><div style={{ fontSize: 18, fontWeight: 700, color: '#10b981' }}>{correct}</div></div>
-          <div><div style={{ fontSize: 12, color: '#64748b', fontWeight: 600 }}>Wrong</div><div style={{ fontSize: 18, fontWeight: 700, color: '#ef4444' }}>{wrong}</div></div>
-          <div><div style={{ fontSize: 12, color: '#64748b', fontWeight: 600 }}>Skipped</div><div style={{ fontSize: 18, fontWeight: 700, color: '#94a3b8' }}>{skipped}</div></div>
-          <div><div style={{ fontSize: 12, color: '#64748b', fontWeight: 600 }}>Time</div><div style={{ fontSize: 18, fontWeight: 700, color: '#0f172a' }}>{fmt(timeTakenSeconds)}</div></div>
-        </div>
+    <div className="min-h-full bg-[#f8fafc]">
+      <div className="max-w-3xl mx-auto px-5 py-8 space-y-6">
 
-        <div style={{ display: 'flex', justifyContent: 'center', gap: 12, marginBottom: 24 }}>
-          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '8px 16px', borderRadius: 99, background: '#eef2ff' }}>
-            <Trophy size={18} color="#4f46e5" />
-            <span style={{ fontSize: 15, fontWeight: 700, color: '#4f46e5' }}>+{xpAwarded} XP earned!</span>
-          </div>
-          
-          {rank && (
-            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '8px 16px', borderRadius: 99, background: '#fffbeb', border: '1px solid #fde68a' }}>
-              <Crown size={18} color="#ca8a04" />
-              <span style={{ fontSize: 15, fontWeight: 700, color: '#ca8a04' }}>Rank #{rank}</span>
-            </div>
-          )}
-        </div>
+        {/* ── Hero Result Card ── */}
+        <div className="bg-gradient-to-br from-slate-900 to-slate-800 rounded-3xl p-8 text-white shadow-2xl shadow-slate-900/20 relative overflow-hidden">
+          <div className="absolute -right-10 -top-10 w-40 h-40 bg-white/5 rounded-full" />
+          <div className="absolute right-20 bottom-0 w-20 h-20 bg-white/5 rounded-full" />
 
-        {result.mockTestId && (
-          <button 
-            onClick={() => navigate(`/mock-test/leaderboard/${result.mockTestId}`)}
-            className="btn btn-secondary"
-            style={{ marginBottom: 24, padding: '8px 20px', borderRadius: 10 }}
-          >
-            <Trophy size={14} style={{ marginRight: 6 }} /> View All India Leaderboard
-          </button>
-        )}
-      </div>
+          <div className="relative flex flex-col md:flex-row items-center gap-8">
+            <ScoreRing pct={pct} />
+            <div className="flex-1 text-center md:text-left">
+              <p className="text-slate-400 text-xs font-bold uppercase tracking-widest mb-1">{mode || 'Quiz'} Complete</p>
+              <h1 className={`text-3xl font-black mb-1 ${grade.c}`}>{grade.l}</h1>
+              <p className="text-slate-300 text-sm mb-5">{obtainedMarks?.toFixed(1)} / {totalMarks} marks · {accuracy}% accuracy</p>
 
-      {/* ── Topic Analysis Section ── */}
-      {result.topicAnalysis && result.topicAnalysis.length > 0 && (
-        <div style={{ marginBottom: '32px' }}>
-          <h2 style={{ fontSize: 18, fontWeight: 700, color: '#0f172a', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
-            <BarChart2 size={20} color="#4f46e5" /> Performance Analysis by Topic
-          </h2>
-          <div className="card" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: 16 }}>
-            {result.topicAnalysis.map((item, idx) => {
-              const accuracy = item.total > 0 ? Math.round((item.correct / item.total) * 100) : 0
-              let barColor = '#ef4444' // Red
-              let label = 'Needs Improvement'
-              let labelColor = '#ef4444'
-              let bgColor = '#fef2f2'
-
-              if (accuracy >= 80) {
-                barColor = '#10b981' // Green
-                label = 'Excellent Mastery'
-                labelColor = '#059669'
-                bgColor = '#ecfdf5'
-              } else if (accuracy >= 50) {
-                barColor = '#f59e0b' // Yellow
-                label = 'Good Progress'
-                labelColor = '#d97706'
-                bgColor = '#fffbe8'
-              } else {
-                label = 'Critical Revision Needed'
-              }
-
-              return (
-                <div key={idx} style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span style={{ fontSize: 15, fontWeight: 700, color: '#334155' }}>{item.topic}</span>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <span style={{ fontSize: 12, fontWeight: 600, padding: '2px 8px', borderRadius: 4, background: bgColor, color: labelColor }}>
-                        {label}
-                      </span>
-                      <span style={{ fontSize: 14, fontWeight: 800, color: '#0f172a' }}>{accuracy}%</span>
-                    </div>
+              {/* Stats chips */}
+              <div className="flex flex-wrap gap-3 justify-center md:justify-start">
+                {[
+                  { icon: CheckCircle2, l: 'Correct',  v: correct, c: 'bg-emerald-500/20 text-emerald-400' },
+                  { icon: XCircle,      l: 'Wrong',    v: wrong,   c: 'bg-rose-500/20 text-rose-400' },
+                  { icon: Minus,        l: 'Skipped',  v: skipped, c: 'bg-slate-600/40 text-slate-400' },
+                  { icon: Clock,        l: 'Time',     v: fmt(timeTakenSeconds || 0), c: 'bg-blue-500/20 text-blue-400' },
+                ].map(s => (
+                  <div key={s.l} className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold ${s.c}`}>
+                    <s.icon size={13} /> {s.l}: {s.v}
                   </div>
-                  
-                  {/* Progress Bar */}
-                  <div style={{ height: 8, background: '#f1f5f9', borderRadius: 4, overflow: 'hidden', position: 'relative' }}>
-                    <div 
-                      style={{ 
-                        height: '100%', 
-                        width: `${accuracy}%`, 
-                        background: barColor, 
-                        borderRadius: 4,
-                        transition: 'width 1s ease-out'
-                      }} 
-                    />
-                  </div>
-                  
-                  <div style={{ fontSize: 12, color: '#64748b', display: 'flex', gap: 12 }}>
-                    <span>Total Questions: <b>{item.total}</b></span>
-                    <span>Correct: <b style={{ color: '#10b981' }}>{item.correct}</b></span>
-                    <span>Wrong: <b style={{ color: '#ef4444' }}>{item.wrong}</b></span>
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-        </div>
-      )}
-
-      <h2 style={{ fontSize: 18, fontWeight: 700, color: '#0f172a', marginBottom: 16 }}>Question Review</h2>
-      
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 16, marginBottom: 32 }}>
-        {questions?.map((q, idx) => {
-          const ans = ansMap[q._id]
-          const isCorrect = ans?.isCorrect
-          
-          return (
-            <div key={q._id} className="card" style={{ padding: 24 }}>
-              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, marginBottom: 16 }}>
-                <div style={{ marginTop: 2 }}>
-                  {isCorrect ? <CheckCircle size={20} color="#10b981" /> : <XCircle size={20} color="#ef4444" />}
-                </div>
-                <div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
-                    <div style={{ fontSize: 13, fontWeight: 700, color: '#64748b', marginBottom: 4 }}>Question {idx + 1}</div>
-                    <button 
-                      onClick={() => toggleBookmark(q._id)}
-                      style={{ background: 'none', border: 'none', cursor: 'pointer', color: bookmarks.includes(q._id) ? '#4f46e5' : '#94a3b8' }}
-                    >
-                      <BookOpen size={16} fill={bookmarks.includes(q._id) ? '#4f46e5' : 'none'} />
-                    </button>
-                  </div>
-                  <p style={{ fontSize: 15, fontWeight: 600, color: '#0f172a', lineHeight: 1.6 }}>{q.question}</p>
-                </div>
+                ))}
               </div>
-              
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16, paddingLeft: 32 }}>
-                {q.options ? Object.entries(q.options).map(([key, val]) => {
-                  const isSelected = ans?.selectedOption === key
-                  const isCorrectOpt = String(q.correct).trim().toLowerCase() === String(key).trim().toLowerCase()
-                  
-                  let bg = '#f8fafc'
-                  let border = '#e2e8f0'
-                  let textColor = '#334155'
-                  
-                  if (isCorrectOpt) { bg = '#ecfdf5'; border = '#10b981'; textColor = '#065f46' }
-                  else if (isSelected && !isCorrectOpt) { bg = '#fef2f2'; border = '#ef4444'; textColor = '#991b1b' }
-                  
-                  return (
-                    <div key={key} style={{ padding: '10px 14px', borderRadius: 8, border: `2px solid ${border}`, background: bg, fontSize: 14, color: textColor }}>
-                      <span style={{ fontWeight: 700, marginRight: 8 }}>{key}.</span>{val}
-                    </div>
-                  )
-                }) : (
-                  <div style={{ padding: '10px 14px', borderRadius: 8, border: `2px solid ${isCorrect ? '#10b981' : '#ef4444'}`, background: isCorrect ? '#ecfdf5' : '#fef2f2', fontSize: 14 }}>
-                    Your Answer: <strong>{ans?.selectedOption || 'N/A'}</strong> (Correct: {q.correct})
+
+              {/* XP + Rank */}
+              <div className="flex flex-wrap gap-3 justify-center md:justify-start mt-4">
+                <div className="flex items-center gap-2 px-4 py-2 bg-yellow-400/20 text-yellow-300 rounded-xl text-sm font-black">
+                  <Zap size={15} /> +{xpAwarded} XP
+                </div>
+                {rank && (
+                  <div className="flex items-center gap-2 px-4 py-2 bg-amber-400/20 text-amber-300 rounded-xl text-sm font-black">
+                    <Crown size={15} /> Rank #{rank}
                   </div>
                 )}
               </div>
-              
-              {q.explanation && (
-                <div style={{ marginLeft: 32, padding: 16, borderRadius: 8, background: '#eef2ff', color: '#4338ca', fontSize: 13, lineHeight: 1.5 }}>
-                  <strong>Explanation:</strong> {q.explanation}
-                </div>
-              )}
             </div>
-          )
-        })}
-      </div>
+          </div>
+        </div>
 
-      <div style={{ display: 'flex', gap: 12 }}>
-        <button onClick={() => navigate('/library')} className="btn-secondary" style={{ flex: 1, padding: 14 }}>
-          <BookOpen size={18} /> Library
-        </button>
-        {mode === 'practice' && (
-          <button onClick={() => navigate(-1)} className="btn-primary" style={{ flex: 1, padding: 14 }}>
-            <RotateCcw size={18} /> Retry Practice
-          </button>
+        {/* ── Topic Analysis ── */}
+        {result.topicAnalysis?.length > 0 && (
+          <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
+            <h2 className="font-black text-slate-900 mb-5 flex items-center gap-2">
+              <BarChart2 size={18} className="text-blue-500" /> Topic-wise Analysis
+            </h2>
+            <div className="space-y-4">
+              {result.topicAnalysis.map((t, i) => {
+                const tp = t.total > 0 ? Math.round((t.correct / t.total) * 100) : 0
+                const color = tp >= 80 ? 'bg-emerald-500' : tp >= 50 ? 'bg-amber-500' : 'bg-rose-500'
+                const textC  = tp >= 80 ? 'text-emerald-600' : tp >= 50 ? 'text-amber-600' : 'text-rose-600'
+                return (
+                  <div key={i}>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <span className="text-sm font-bold text-slate-800">{t.topic}</span>
+                      <div className="flex items-center gap-3 text-xs text-slate-400">
+                        <span>{t.correct}/{t.total}</span>
+                        <span className={`font-black ${textC}`}>{tp}%</span>
+                      </div>
+                    </div>
+                    <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+                      <div className={`h-full ${color} rounded-full transition-all duration-700`} style={{ width: `${tp}%` }} />
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
         )}
+
+        {/* ── Question Review ── */}
+        <div>
+          <h2 className="font-black text-slate-900 mb-4 flex items-center gap-2">
+            <Target size={18} className="text-violet-500" /> Question Review
+            <span className="text-xs text-slate-400 font-normal ml-auto">{questions?.length} questions</span>
+          </h2>
+          <div className="space-y-3">
+            {displayed?.map((q, idx) => (
+              <QuestionReview key={q._id} q={q} ans={ansMap[q._id]} idx={idx} bookmarks={bookmarks} onToggleBookmark={toggleBM} />
+            ))}
+          </div>
+          {questions?.length > 5 && (
+            <button onClick={() => setShowAll(v => !v)}
+              className="w-full mt-4 py-3 bg-white border border-slate-200 rounded-2xl text-sm font-bold text-slate-600 hover:bg-slate-50 transition-all flex items-center justify-center gap-2">
+              {showAll ? <><ChevronUp size={15} /> Show less</> : <><ChevronDown size={15} /> Show all {questions.length} questions</>}
+            </button>
+          )}
+        </div>
+
+        {/* ── CTA Row ── */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pb-4">
+          {result.mockTestId && (
+            <button onClick={() => navigate(`/mock-test/leaderboard/${result.mockTestId}`)}
+              className="flex items-center justify-center gap-2 py-3 bg-amber-50 border border-amber-200 text-amber-700 rounded-2xl text-sm font-bold hover:bg-amber-100 transition-all">
+              <Trophy size={15} /> Leaderboard
+            </button>
+          )}
+          <button onClick={() => navigate('/quiz')}
+            className="flex items-center justify-center gap-2 py-3 bg-slate-100 text-slate-700 rounded-2xl text-sm font-bold hover:bg-slate-200 transition-all">
+            <BookOpen size={15} /> Quiz Center
+          </button>
+          <button onClick={() => navigate(-1)}
+            className="flex items-center justify-center gap-2 py-3 bg-gradient-to-r from-blue-600 to-violet-600 text-white rounded-2xl text-sm font-black shadow-lg shadow-blue-500/20 hover:scale-[1.02] transition-all col-span-1 sm:col-span-1">
+            <RotateCcw size={15} /> Try Again
+          </button>
+        </div>
       </div>
     </div>
   )
