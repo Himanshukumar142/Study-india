@@ -2,7 +2,8 @@ import { Outlet, NavLink, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import {
   LayoutDashboard, BookOpen, Upload, Zap, XCircle,
-  Trophy, User, ShieldCheck, LogOut, Brain, Flame, ChevronRight, Target, Bookmark
+  Trophy, User, ShieldCheck, LogOut, Brain, Flame, ChevronRight, Target, Bookmark,
+  FileText, BarChart2, Calendar, MessageCircle, Layers, Link, CheckSquare, StickyNote, FlaskConical, Timer, Medal
 } from 'lucide-react'
 
 const navItems = [
@@ -10,7 +11,19 @@ const navItems = [
   { to: '/library',   icon: BookOpen,        label: 'Library'   },
   { to: '/bookmarks', icon: Bookmark,        label: 'Bookmarks' },
   { to: '/quiz',      icon: Target,          label: 'Quizzes'   },
-  { to: '/upload',    icon: Upload,          label: 'Upload'    },
+  { to: '/pdf-quiz',   icon: FileText,        label: 'PDF → Quiz' },
+  { to: '/downloader', icon: Link,            label: 'Link Downloader' },
+  { to: '/daily-challenge', icon: Flame,      label: 'Daily Challenge' },
+  { to: '/analytics', icon: BarChart2,        label: 'Analytics' },
+  { to: '/study-plan', icon: Calendar,        label: 'Study Plan' },
+  { to: '/flashcards', icon: Layers,          label: 'Flashcards' },
+  { to: '/doubts',    icon: MessageCircle,    label: 'Doubt Forum' },
+  { to: '/syllabus',  icon: CheckSquare,       label: 'Syllabus'   },
+  { to: '/notes',     icon: StickyNote,        label: 'My Notes'   },
+  { to: '/formulas',  icon: FlaskConical,      label: 'Formulas'   },
+  { to: '/badges',    icon: Medal,             label: 'Badges'     },
+  { to: '/pomodoro',  icon: Timer,             label: 'Pomodoro'   },
+  { to: '/upload',    icon: Upload,            label: 'Upload'     },
   { to: '/focus',     icon: Zap,             label: 'Focus Mode'},
   { to: '/mistakes',  icon: XCircle,         label: 'Mistakes'  },
   { to: '/leaderboard', icon: Trophy,        label: 'Leaderboard'},

@@ -10,6 +10,8 @@ const morgan = require('morgan');
 const connectDB = require('./src/config/db');
 const errorHandler = require('./src/middleware/errorHandler.middleware');
 
+const { globalLimiter, authLimiter, aiLimiter, quizLimiter } = require('./src/middleware/rateLimiter.middleware');
+
 // Routes
 const authRoutes = require('./src/routes/auth.routes');
 const userRoutes = require('./src/routes/user.routes');
@@ -42,6 +44,9 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(cookieParser());
 
+// Rate limiting
+app.use('/api', globalLimiter);
+
 // Logging
 if (process.env.NODE_ENV !== 'production') {
   app.use(morgan('dev'));
@@ -53,10 +58,10 @@ app.get('/api/health', (req, res) => {
 });
 
 // API Routes
-app.use('/api/auth', authRoutes);
+app.use('/api/auth', authLimiter, authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/content', contentRoutes);
-app.use('/api/quizzes', quizRoutes);
+app.use('/api/quizzes', quizLimiter, quizRoutes);
 app.use('/api/mistakes', mistakeRoutes);
 app.use('/api/bookmarks', bookmarkRoutes);
 app.use('/api/sessions', sessionRoutes);
@@ -66,7 +71,15 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/challenges', challengeRoutes);
 const mockTestRoutes = require('./src/routes/mockTest.routes');
 app.use('/api/mock-tests', mockTestRoutes);
-app.use('/api/ai', aiRoutes);
+app.use('/api/ai', aiLimiter, aiRoutes);
+app.use('/api/daily-challenge', require('./src/routes/dailyChallenge.routes'));
+app.use('/api/doubts', require('./src/routes/doubt.routes'));
+app.use('/api/study-plan', require('./src/routes/studyPlan.routes'));
+app.use('/api/flashcards', require('./src/routes/flashcard.routes'));
+app.use('/api/resources', require('./src/routes/resource.routes'));
+app.use('/api/syllabus', require('./src/routes/syllabus.routes'));
+app.use('/api/notes', require('./src/routes/note.routes'));
+app.use('/api/badges', require('./src/routes/badge.routes'));
 
 // 404 handler
 app.use((req, res) => {

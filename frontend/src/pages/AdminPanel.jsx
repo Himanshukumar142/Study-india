@@ -309,7 +309,7 @@ export default function AdminPanel() {
             {activeTab === 'users' && <StudentsPage users={users} onToggleUser={handleToggleUser} />}
             {activeTab === 'content' && <ApprovalsPage content={content} onUpdateStatus={handleUpdateStatus} />}
             {activeTab === 'quizzes' && <QuestionBankPage questions={questions} onAddQuestion={handleAddQuestion} />}
-            {activeTab === 'mock-tests' && <MockTestsPage mockTests={mockTests} questions={questions} onCreateTest={handleCreateTest} />}
+            {activeTab === 'mock-tests' && <MockTestsPage />}
             {activeTab === 'moderation' && <ModerationPage />}
             {activeTab === 'storage' && <StoragePage />}
             {activeTab === 'settings' && <SettingsPage />}

@@ -3,10 +3,10 @@ import { useParams, useNavigate } from 'react-router-dom'
 import api from '../services/api'
 import {
   CheckCircle2, XCircle, Minus, Trophy, RotateCcw, BookOpen,
-  Clock, Crown, BarChart2, ChevronDown, ChevronUp, Zap, Target, TrendingUp
+  Clock, Crown, BarChart2, ChevronDown, ChevronUp, Zap, Target
 } from 'lucide-react'
 import toast from 'react-hot-toast'
-import { RadialBarChart, RadialBar, ResponsiveContainer, PieChart, Pie, Cell, Tooltip } from 'recharts'
+import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts'
 
 const fmt = (s) => `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`
 

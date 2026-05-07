@@ -17,8 +17,21 @@ import ProfilePage from './pages/ProfilePage'
 import BookmarksPage from './pages/BookmarksPage'
 import AdminPanel from './pages/AdminPanel'
 import MockTestLeaderboardPage from './pages/MockTestLeaderboardPage'
+import PDFQuizPage from './pages/PDFQuizPage'
+import AnalyticsPage from './pages/AnalyticsPage'
+import DailyChallengePage from './pages/DailyChallengePage'
+import DoubtForumPage from './pages/DoubtForumPage'
+import StudyPlannerPage from './pages/StudyPlannerPage'
+import FlashcardPage from './pages/FlashcardPage'
+import ResourceDownloaderPage from './pages/ResourceDownloaderPage'
+import SyllabusTrackerPage from './pages/SyllabusTrackerPage'
+import NotesPage from './pages/NotesPage'
+import FormulaSheetPage from './pages/FormulaSheetPage'
+import BadgesPage from './pages/BadgesPage'
+import PomodoroPage from './pages/PomodoroPage'
 import Layout from './components/Layout'
 import AIFloatingBot from './components/AIFloatingBot'
+import MusicPlayer from './components/MusicPlayer'
 
 const ProtectedRoute = ({ children, adminOnly = false }) => {
   const { user, loading } = useAuth()
@@ -64,6 +77,18 @@ export default function App() {
           <Route path="bookmarks" element={<BookmarksPage />} />
           <Route path="leaderboard" element={<LeaderboardPage />} />
           <Route path="mock-test/leaderboard/:id" element={<MockTestLeaderboardPage />} />
+          <Route path="pdf-quiz" element={<PDFQuizPage />} />
+          <Route path="analytics" element={<AnalyticsPage />} />
+          <Route path="daily-challenge" element={<DailyChallengePage />} />
+          <Route path="doubts" element={<DoubtForumPage />} />
+          <Route path="study-plan" element={<StudyPlannerPage />} />
+          <Route path="flashcards" element={<FlashcardPage />} />
+          <Route path="downloader" element={<ResourceDownloaderPage />} />
+          <Route path="syllabus" element={<SyllabusTrackerPage />} />
+          <Route path="notes" element={<NotesPage />} />
+          <Route path="formulas" element={<FormulaSheetPage />} />
+          <Route path="badges" element={<BadgesPage />} />
+          <Route path="pomodoro" element={<PomodoroPage />} />
           <Route path="profile" element={<ProfilePage />} />
         </Route>
 
@@ -73,6 +98,7 @@ export default function App() {
         <Route path="*" element={<Navigate to="/dashboard" />} />
       </Routes>
       <AIFloatingBot />
+      <MusicPlayer />
     </BrowserRouter>
   )
 }

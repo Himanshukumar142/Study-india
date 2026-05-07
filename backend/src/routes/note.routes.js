@@ -1,0 +1,11 @@
+const router = require('express').Router();
+const { getNotes, createNote, updateNote, deleteNote, togglePin, toggleArchive } = require('../controllers/note.controller');
+const { verifyAccessToken } = require('../middleware/auth.middleware');
+router.use(verifyAccessToken);
+router.get('/', getNotes);
+router.post('/', createNote);
+router.put('/:id', updateNote);
+router.delete('/:id', deleteNote);
+router.patch('/:id/pin', togglePin);
+router.patch('/:id/archive', toggleArchive);
+module.exports = router;
