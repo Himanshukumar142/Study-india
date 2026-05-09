@@ -3,7 +3,7 @@ import { useParams, useSearchParams, useNavigate } from 'react-router-dom'
 import api from '../services/api'
 import {
   Clock, ChevronRight, ChevronLeft, CheckCircle2, AlertCircle,
-  Maximize, ShieldAlert, BookOpen, Send, Flag, SkipForward
+  ShieldAlert, BookOpen, Send, Flag
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 
