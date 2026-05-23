@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
-import { Bot, Send, X, Move, Minus, Maximize2 } from 'lucide-react';
+import { Bot, Send, X } from 'lucide-react';
 import api from '../services/api';
-import { useParams, useLocation } from 'react-router-dom';
+import { useLocation } from 'react-router-dom';
 
 export default function AIFloatingBot() {
   const [isOpen, setIsOpen] = useState(false);
@@ -74,7 +74,7 @@ export default function AIFloatingBot() {
       });
 
       setMessages(prev => [...prev, { role: 'assistant', content: data.reply }]);
-    } catch (err) {
+    } catch {
       setMessages(prev => [...prev, { role: 'assistant', content: 'Sorry, I am having trouble connecting. Please check your API key.' }]);
     } finally {
       setLoading(false);

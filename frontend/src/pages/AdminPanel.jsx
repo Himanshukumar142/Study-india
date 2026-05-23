@@ -5,7 +5,7 @@ import api from '../services/api'
 import {
   LayoutDashboard, Brain, Users, ShieldCheck, BookOpen,
   Zap, AlertTriangle, Database, Settings, LogOut,
-  Bell, Search, ChevronLeft, ChevronRight, Menu, X,
+  Bell, ChevronLeft, ChevronRight, Menu, X,
   MoreVertical, Activity, Globe
 } from 'lucide-react'
 import toast from 'react-hot-toast'
@@ -161,10 +161,13 @@ export default function AdminPanel() {
   const [stats, setStats] = useState(null)
   const [users, setUsers] = useState([])
   const [content, setContent] = useState([])
+  // eslint-disable-next-line no-unused-vars
   const [mockTests, setMockTests] = useState([])
   const [questions, setQuestions] = useState([])
   const [loading, setLoading] = useState(true)
+  // eslint-disable-next-line no-unused-vars
   const [isCreatingMt, setIsCreatingMt] = useState(false)
+  // eslint-disable-next-line no-unused-vars
   const [isAddingQuestion, setIsAddingQuestion] = useState(false)
 
   useEffect(() => { fetchData() }, [])
