@@ -2,115 +2,89 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   Atom, Beaker, Calculator, Dna, Sparkles, Clock, Trophy,
-  ChevronRight, Play, Zap, Target, Lock, CheckCircle2,
-  BarChart2, BookOpen, ArrowRight, RefreshCw
+  Play, Zap, Target, Lock, CheckCircle2, BarChart2, BookOpen,
+  ArrowRight, RefreshCw, ChevronRight, Layers
 } from 'lucide-react'
 import api from '../services/api'
 import toast from 'react-hot-toast'
 
-// ─── Subject config ───────────────────────────────────────────
 const SUBJECTS = [
   {
-    id: 'Physics', icon: Atom, color: '#3b82f6',
-    grad: 'from-blue-500 to-indigo-600', lightBg: 'bg-blue-50',
-    chapters: [
-      'Kinematics', 'Laws of Motion', 'Work Energy Power', 'Gravitation',
-      'Thermodynamics', 'Wave Optics', 'Electrostatics', 'Current Electricity',
-      'Magnetism', 'Modern Physics',
-    ],
+    id: 'Physics', icon: Atom, color: '#3b82f6', bg: '#eff6ff', border: '#bfdbfe',
+    grad: 'linear-gradient(135deg, #3b82f6, #4f46e5)',
+    chapters: ['Kinematics','Laws of Motion','Work Energy Power','Gravitation','Thermodynamics','Wave Optics','Electrostatics','Current Electricity','Magnetism','Modern Physics'],
   },
   {
-    id: 'Chemistry', icon: Beaker, color: '#10b981',
-    grad: 'from-emerald-500 to-teal-600', lightBg: 'bg-emerald-50',
-    chapters: [
-      'Atomic Structure', 'Chemical Bonding', 'States of Matter', 'Thermodynamics',
-      'Equilibrium', 'Electrochemistry', 'Organic Chemistry', 'Hydrocarbons',
-      'p-Block Elements', 'Coordination Compounds',
-    ],
+    id: 'Chemistry', icon: Beaker, color: '#10b981', bg: '#ecfdf5', border: '#a7f3d0',
+    grad: 'linear-gradient(135deg, #10b981, #0d9488)',
+    chapters: ['Atomic Structure','Chemical Bonding','States of Matter','Thermodynamics','Equilibrium','Electrochemistry','Organic Chemistry','Hydrocarbons','p-Block Elements','Coordination Compounds'],
   },
   {
-    id: 'Mathematics', icon: Calculator, color: '#f59e0b',
-    grad: 'from-amber-500 to-orange-500', lightBg: 'bg-amber-50',
-    chapters: [
-      'Sets & Relations', 'Complex Numbers', 'Matrices', 'Calculus',
-      'Differential Equations', 'Vectors', 'Probability', 'Statistics',
-      'Trigonometry', 'Coordinate Geometry',
-    ],
+    id: 'Mathematics', icon: Calculator, color: '#f59e0b', bg: '#fffbeb', border: '#fde68a',
+    grad: 'linear-gradient(135deg, #f59e0b, #ef4444)',
+    chapters: ['Sets & Relations','Complex Numbers','Matrices','Calculus','Differential Equations','Vectors','Probability','Statistics','Trigonometry','Coordinate Geometry'],
   },
   {
-    id: 'Biology', icon: Dna, color: '#ef4444',
-    grad: 'from-rose-500 to-pink-600', lightBg: 'bg-rose-50',
-    chapters: [
-      'Cell Biology', 'Genetics & Heredity', 'Molecular Biology', 'Human Physiology',
-      'Plant Physiology', 'Reproduction', 'Ecology', 'Biotechnology',
-      'Evolution', 'Microbes in Human Welfare',
-    ],
+    id: 'Biology', icon: Dna, color: '#ef4444', bg: '#fff1f2', border: '#fecdd3',
+    grad: 'linear-gradient(135deg, #ef4444, #db2777)',
+    chapters: ['Cell Biology','Genetics & Heredity','Molecular Biology','Human Physiology','Plant Physiology','Reproduction','Ecology','Biotechnology','Evolution','Microbes in Human Welfare'],
   },
 ]
 
 const MODES = [
-  { id: 'practice', icon: BookOpen, label: 'Practice', desc: 'No timer · See hints', color: 'emerald', border: 'border-emerald-300', bg: 'bg-emerald-50', text: 'text-emerald-700', ring: 'ring-emerald-300' },
-  { id: 'test', icon: Target, label: 'Test', desc: 'Timed · Standard', color: 'blue', border: 'border-blue-300', bg: 'bg-blue-50', text: 'text-blue-700', ring: 'ring-blue-300' },
-  { id: 'exam', icon: Zap, label: 'Exam', desc: 'Strict · Anti-cheat', color: 'rose', border: 'border-rose-300', bg: 'bg-rose-50', text: 'text-rose-700', ring: 'ring-rose-300' },
+  { id: 'practice', icon: BookOpen, label: 'Practice', desc: 'No timer · See hints', color: '#10b981', bg: '#ecfdf5', border: '#6ee7b7' },
+  { id: 'test',     icon: Target,   label: 'Test',     desc: 'Timed · Standard',   color: '#3b82f6', bg: '#eff6ff', border: '#93c5fd' },
+  { id: 'exam',     icon: Zap,      label: 'Exam',     desc: 'Strict · Anti-cheat', color: '#ef4444', bg: '#fff1f2', border: '#fca5a5' },
 ]
 
 const LIMITS = [5, 10, 15, 20]
 
-// ─── Mock Test Card ───────────────────────────────────────────
 function MockTestCard({ mt, navigate }) {
   const isUpcoming = mt.status === 'upcoming'
   const isActive   = mt.status === 'active'
   const isDone     = mt.status === 'completed' || mt.userAttempted
 
-  const statusStyles = {
-    active:    { dot: 'bg-emerald-500 animate-pulse', badge: 'bg-emerald-50 text-emerald-700 border-emerald-200', label: 'LIVE' },
-    upcoming:  { dot: 'bg-amber-400',                  badge: 'bg-amber-50 text-amber-700 border-amber-200',   label: 'UPCOMING' },
-    completed: { dot: 'bg-slate-400',                  badge: 'bg-slate-100 text-slate-500 border-slate-200',  label: 'ENDED' },
+  const statusConfig = {
+    active:    { dot: '#10b981', badge: '#ecfdf5', badgeText: '#059669', badgeBorder: '#a7f3d0', label: '🔴 LIVE' },
+    upcoming:  { dot: '#f59e0b', badge: '#fffbeb', badgeText: '#92400e', badgeBorder: '#fde68a', label: 'UPCOMING' },
+    completed: { dot: '#94a3b8', badge: '#f8fafc', badgeText: '#64748b', badgeBorder: '#e2e8f0', label: 'ENDED' },
   }
-  const s = statusStyles[mt.status] || statusStyles.completed
+  const s = statusConfig[mt.status] || statusConfig.completed
 
   return (
-    <div className={`bg-white rounded-2xl border-2 p-5 hover:shadow-xl hover:shadow-slate-200/60 transition-all duration-200 flex flex-col group ${isActive ? 'border-violet-300 shadow-lg shadow-violet-100' : 'border-slate-100'}`}>
-      {/* Header */}
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-2">
-          <div className={`w-2 h-2 rounded-full ${s.dot}`} />
-          <span className={`px-2.5 py-0.5 rounded-lg text-[10px] font-black uppercase border ${s.badge}`}>{s.label}</span>
+    <div style={{
+      background: '#fff', borderRadius: 16, border: `2px solid ${isActive ? '#c4b5fd' : '#f1f5f9'}`,
+      padding: 20, display: 'flex', flexDirection: 'column', gap: 12,
+      boxShadow: isActive ? '0 4px 24px rgba(139,92,246,0.12)' : '0 1px 4px rgba(0,0,0,0.05)',
+      transition: 'all 0.2s',
+    }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div style={{ width: 8, height: 8, borderRadius: '50%', background: s.dot, animation: isActive ? 'pulse 2s infinite' : 'none' }} />
+          <span style={{ fontSize: 10, fontWeight: 800, background: s.badge, color: s.badgeText, border: `1px solid ${s.badgeBorder}`, padding: '2px 8px', borderRadius: 6 }}>{s.label}</span>
         </div>
-        <span className="text-[11px] font-bold text-slate-400 bg-slate-50 px-2 py-0.5 rounded-lg">{mt.exam || 'JEE/NEET'}</span>
+        <span style={{ fontSize: 11, color: '#94a3b8', background: '#f8fafc', padding: '2px 8px', borderRadius: 6, fontWeight: 600 }}>{mt.exam || 'JEE/NEET'}</span>
       </div>
 
-      {/* Title */}
-      <h3 className="font-black text-slate-900 text-sm mb-2 group-hover:text-violet-700 transition-colors leading-snug">{mt.title}</h3>
-
-      {/* Meta */}
-      <div className="flex flex-wrap gap-3 text-[11px] text-slate-400 mb-4">
-        <span className="flex items-center gap-1"><Clock size={11} /> {mt.duration || 180} min</span>
-        <span className="flex items-center gap-1"><Target size={11} /> {mt.questions?.length || mt.totalQuestions || '—'} Qs</span>
-        {mt.startTime && <span className="flex items-center gap-1"><Zap size={11} /> {new Date(mt.startTime).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>}
+      <div>
+        <h3 style={{ fontSize: 14, fontWeight: 800, color: '#0f172a', marginBottom: 4, lineHeight: 1.4 }}>{mt.title}</h3>
+        <div style={{ display: 'flex', gap: 12, fontSize: 11, color: '#94a3b8' }}>
+          <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}><Clock size={11} /> {mt.duration || 180} min</span>
+          <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}><Target size={11} /> {mt.questions?.length || mt.totalQuestions || '—'} Qs</span>
+        </div>
       </div>
 
-      {/* Attempts badge */}
-      {mt.attempts > 0 && (
-        <div className="mb-4 p-2.5 bg-slate-50 rounded-xl flex items-center gap-2">
-          <BarChart2 size={13} className="text-slate-400" />
-          <span className="text-[11px] text-slate-500">{mt.attempts} attempts · Avg {mt.avgScore ?? '—'}%</span>
-        </div>
-      )}
-
-      <div className="mt-auto">
+      <div style={{ marginTop: 'auto' }}>
         {isDone ? (
-          <button onClick={() => navigate(`/mock-test/leaderboard/${mt._id}`)}
-            className="w-full py-2.5 bg-slate-100 text-slate-600 rounded-xl text-xs font-bold hover:bg-slate-200 transition-all flex items-center justify-center gap-2">
+          <button onClick={() => navigate(`/mock-test/leaderboard/${mt._id}`)} style={{ width: '100%', padding: '10px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 10, fontSize: 12, fontWeight: 700, color: '#64748b', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
             <Trophy size={13} /> View Leaderboard
           </button>
         ) : isUpcoming ? (
-          <button disabled className="w-full py-2.5 bg-slate-100 text-slate-400 rounded-xl text-xs font-bold cursor-not-allowed flex items-center justify-center gap-2">
+          <button disabled style={{ width: '100%', padding: '10px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 10, fontSize: 12, fontWeight: 700, color: '#cbd5e1', cursor: 'not-allowed', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
             <Lock size={13} /> Starts Soon
           </button>
         ) : (
-          <button onClick={() => navigate(`/quiz/mock/${mt._id}`)}
-            className="w-full py-2.5 bg-gradient-to-r from-violet-600 to-purple-600 text-white rounded-xl text-xs font-black hover:scale-[1.02] transition-all shadow-lg shadow-violet-500/25 flex items-center justify-center gap-2">
+          <button onClick={() => navigate(`/quiz/mock/${mt._id}`)} style={{ width: '100%', padding: '10px', background: 'linear-gradient(135deg, #7c3aed, #6d28d9)', border: 'none', borderRadius: 10, fontSize: 12, fontWeight: 800, color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, boxShadow: '0 4px 12px rgba(124,58,237,0.3)' }}>
             <Play size={13} /> Join Test
           </button>
         )}
@@ -119,23 +93,22 @@ function MockTestCard({ mt, navigate }) {
   )
 }
 
-// ─── Main Page ────────────────────────────────────────────────
 export default function QuizSelectionPage() {
   const navigate = useNavigate()
-  const [tab, setTab] = useState('practice')          // 'practice' | 'mock'
+  const [tab, setTab]                     = useState('practice')
   const [selectedSubject, setSelectedSubject] = useState(null)
   const [selectedChapter, setSelectedChapter] = useState('')
-  const [selectedMode, setSelectedMode]       = useState('practice')
-  const [questionLimit, setQuestionLimit]     = useState(10)
-  const [mockTests, setMockTests]             = useState([])
-  const [mtLoading, setMtLoading]             = useState(true)
+  const [selectedMode, setSelectedMode]   = useState('practice')
+  const [questionLimit, setQuestionLimit] = useState(10)
+  const [mockTests, setMockTests]         = useState([])
+  const [mtLoading, setMtLoading]         = useState(true)
 
-  useEffect(() => {
-    api.get('/mock-tests')
-      .then(r => setMockTests(r.data.data || []))
-      .catch(() => {})
-      .finally(() => setMtLoading(false))
-  }, [])
+  const loadMocks = () => {
+    setMtLoading(true)
+    api.get('/mock-tests').then(r => setMockTests(r.data.data || [])).catch(() => {}).finally(() => setMtLoading(false))
+  }
+
+  useEffect(() => { loadMocks() }, [])
 
   const sub = SUBJECTS.find(s => s.id === selectedSubject)
   const canStart = selectedSubject && selectedChapter
@@ -150,134 +123,181 @@ export default function QuizSelectionPage() {
   const pastMocks     = mockTests.filter(m => m.status === 'completed' || m.userAttempted)
 
   return (
-    <div className="min-h-full bg-[#f8fafc]">
-      <div className="max-w-5xl mx-auto px-5 py-8 space-y-8">
+    <div style={{ minHeight: '100%', background: '#f8fafc' }}>
+      <div style={{ maxWidth: 960, margin: '0 auto', padding: '28px 20px', display: 'flex', flexDirection: 'column', gap: 24 }}>
 
-        {/* Hero */}
-        <div className="bg-gradient-to-br from-blue-600 via-indigo-600 to-violet-700 rounded-3xl p-8 text-white shadow-2xl shadow-blue-500/20 relative overflow-hidden">
-          <div className="absolute -right-12 -top-12 w-48 h-48 bg-white/5 rounded-full" />
-          <div className="absolute right-12 bottom-4 w-24 h-24 bg-white/5 rounded-full" />
-          <div className="relative">
-            <div className="flex items-center gap-2 mb-3">
-              <Sparkles size={18} className="text-yellow-300" />
-              <span className="text-blue-200 text-xs font-bold uppercase tracking-widest">Quiz & Mock Test Center</span>
+        {/* ── Hero ── */}
+        <div style={{ background: 'linear-gradient(135deg, #1e40af, #4f46e5, #7c3aed)', borderRadius: 20, padding: '32px 32px', color: '#fff', position: 'relative', overflow: 'hidden' }}>
+          <div style={{ position: 'absolute', right: -40, top: -40, width: 200, height: 200, background: 'rgba(255,255,255,0.05)', borderRadius: '50%' }} />
+          <div style={{ position: 'absolute', right: 60, bottom: -20, width: 120, height: 120, background: 'rgba(255,255,255,0.05)', borderRadius: '50%' }} />
+          <div style={{ position: 'relative' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10 }}>
+              <Sparkles size={16} color="#fbbf24" />
+              <span style={{ fontSize: 11, fontWeight: 700, color: '#bfdbfe', letterSpacing: '0.1em', textTransform: 'uppercase' }}>Quiz & Mock Test Center</span>
             </div>
-            <h1 className="text-3xl font-black mb-2">Ready to test yourself?</h1>
-            <p className="text-blue-200 text-sm">Practice by topic or join a live mock test — earn XP and climb the leaderboard.</p>
-            <div className="flex gap-4 mt-6">
+            <h1 style={{ fontSize: 28, fontWeight: 900, margin: '0 0 6px' }}>Ready to test yourself?</h1>
+            <p style={{ fontSize: 13, color: '#bfdbfe', margin: '0 0 20px' }}>Practice by topic or join a live mock test — earn XP and climb the leaderboard.</p>
+            <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
               {[
-                { l: 'Live Tests', v: liveMocks.length, c: 'bg-emerald-400/20 text-emerald-200' },
-                { l: 'Upcoming', v: upcomingMocks.length, c: 'bg-amber-400/20 text-amber-200' },
-                { l: 'Questions', v: '10,000+', c: 'bg-violet-400/20 text-violet-200' },
+                { l: 'Live Tests', v: liveMocks.length, bg: 'rgba(16,185,129,0.2)', c: '#6ee7b7' },
+                { l: 'Upcoming',   v: upcomingMocks.length, bg: 'rgba(245,158,11,0.2)', c: '#fcd34d' },
+                { l: 'Questions',  v: '10,000+', bg: 'rgba(167,139,250,0.2)', c: '#c4b5fd' },
               ].map(s => (
-                <div key={s.l} className={`px-4 py-2 rounded-xl ${s.c} backdrop-blur-sm`}>
-                  <p className="text-lg font-black">{s.v}</p>
-                  <p className="text-[11px] font-bold opacity-80">{s.l}</p>
+                <div key={s.l} style={{ background: s.bg, borderRadius: 12, padding: '10px 16px' }}>
+                  <div style={{ fontSize: 20, fontWeight: 900, color: s.c }}>{s.v}</div>
+                  <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.7)', fontWeight: 600 }}>{s.l}</div>
                 </div>
               ))}
             </div>
           </div>
         </div>
 
-        {/* Tab switcher */}
-        <div className="flex bg-white border border-slate-200 rounded-2xl p-1.5 shadow-sm w-fit">
-          {[['practice', BookOpen, 'Practice Quiz'], ['mock', Zap, 'Mock Tests']].map(([id, Icon, label]) => (
-            <button key={id} onClick={() => setTab(id)}
-              className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-bold transition-all ${tab === id ? 'bg-gradient-to-r from-blue-600 to-violet-600 text-white shadow-lg' : 'text-slate-500 hover:text-slate-800'}`}>
-              <Icon size={16} /> {label}
+        {/* ── Tab Switcher ── */}
+        <div style={{ display: 'flex', background: '#fff', border: '1px solid #e2e8f0', borderRadius: 14, padding: 6, width: 'fit-content', gap: 4 }}>
+          {[['practice', BookOpen, 'Practice Quiz'], ['mock', Layers, 'Mock Tests']].map(([id, Icon, label]) => (
+            <button key={id} onClick={() => setTab(id)} style={{
+              display: 'flex', alignItems: 'center', gap: 8, padding: '9px 20px', borderRadius: 10,
+              border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 700, transition: 'all 0.2s',
+              background: tab === id ? 'linear-gradient(135deg, #3b82f6, #7c3aed)' : 'transparent',
+              color: tab === id ? '#fff' : '#64748b',
+              boxShadow: tab === id ? '0 4px 12px rgba(79,70,229,0.25)' : 'none',
+            }}>
+              <Icon size={15} /> {label}
             </button>
           ))}
         </div>
 
         {/* ── PRACTICE TAB ── */}
         {tab === 'practice' && (
-          <div className="space-y-6">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+
             {/* Step 1 – Subject */}
-            <div className="bg-white rounded-2xl border border-slate-100 p-6 shadow-sm">
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
-                <span className="w-5 h-5 bg-blue-600 text-white rounded-full flex items-center justify-center text-[9px] font-black">1</span>
-                Choose Subject
-              </p>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                {SUBJECTS.map(s => (
-                  <button key={s.id} onClick={() => { setSelectedSubject(s.id); setSelectedChapter('') }}
-                    className={`p-5 rounded-2xl border-2 text-center transition-all hover:scale-[1.02] group
-                      ${selectedSubject === s.id ? `bg-gradient-to-br ${s.grad} border-transparent shadow-xl` : 'border-slate-100 bg-slate-50 hover:border-slate-200 hover:bg-white hover:shadow-md'}`}>
-                    <div className={`w-12 h-12 rounded-xl mx-auto mb-3 flex items-center justify-center shadow-md ${selectedSubject === s.id ? 'bg-white/20' : s.lightBg}`}>
-                      <s.icon size={24} className={selectedSubject === s.id ? 'text-white' : ''} style={{ color: selectedSubject === s.id ? 'white' : s.color }} />
-                    </div>
-                    <p className={`font-black text-sm ${selectedSubject === s.id ? 'text-white' : 'text-slate-800'}`}>{s.id}</p>
-                    <p className={`text-[10px] mt-0.5 font-semibold ${selectedSubject === s.id ? 'text-white/70' : 'text-slate-400'}`}>{s.chapters.length} chapters</p>
-                  </button>
-                ))}
+            <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #f1f5f9', padding: 24, boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
+                <div style={{ width: 22, height: 22, borderRadius: '50%', background: '#3b82f6', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 800 }}>1</div>
+                <span style={{ fontSize: 11, fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Choose Subject</span>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }}>
+                {SUBJECTS.map(s => {
+                  const isSelected = selectedSubject === s.id
+                  return (
+                    <button key={s.id} onClick={() => { setSelectedSubject(s.id); setSelectedChapter('') }} style={{
+                      padding: '18px 12px', borderRadius: 14, border: `2px solid ${isSelected ? 'transparent' : s.border}`,
+                      background: isSelected ? s.grad : s.bg, cursor: 'pointer', textAlign: 'center',
+                      transition: 'all 0.2s', transform: isSelected ? 'scale(1.02)' : 'scale(1)',
+                      boxShadow: isSelected ? `0 8px 24px ${s.color}40` : 'none',
+                    }}>
+                      <div style={{ width: 44, height: 44, borderRadius: 12, margin: '0 auto 10px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: isSelected ? 'rgba(255,255,255,0.2)' : '#fff', boxShadow: '0 2px 8px rgba(0,0,0,0.08)' }}>
+                        <s.icon size={22} color={isSelected ? '#fff' : s.color} />
+                      </div>
+                      <div style={{ fontSize: 13, fontWeight: 800, color: isSelected ? '#fff' : '#0f172a' }}>{s.id}</div>
+                      <div style={{ fontSize: 10, color: isSelected ? 'rgba(255,255,255,0.7)' : '#94a3b8', marginTop: 2, fontWeight: 600 }}>{s.chapters.length} chapters</div>
+                    </button>
+                  )
+                })}
               </div>
             </div>
 
             {/* Step 2 – Chapter */}
-            {selectedSubject && (
-              <div className="bg-white rounded-2xl border border-slate-100 p-6 shadow-sm animate-in fade-in slide-in-from-bottom-2 duration-200">
-                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
-                  <span className="w-5 h-5 bg-blue-600 text-white rounded-full flex items-center justify-center text-[9px] font-black">2</span>
-                  Choose Chapter
-                </p>
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-                  {sub.chapters.map(ch => (
-                    <button key={ch} onClick={() => setSelectedChapter(ch)}
-                      className={`py-3 px-3 rounded-xl border-2 text-xs font-bold transition-all text-left leading-snug
-                        ${selectedChapter === ch ? `bg-gradient-to-br ${sub.grad} text-white border-transparent shadow-lg` : 'border-slate-100 bg-slate-50 text-slate-600 hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700'}`}>
-                      {ch}
-                      {selectedChapter === ch && <CheckCircle2 size={12} className="mt-1 text-white/80" />}
-                    </button>
-                  ))}
+            {selectedSubject && sub && (
+              <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #f1f5f9', padding: 24, boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
+                  <div style={{ width: 22, height: 22, borderRadius: '50%', background: '#3b82f6', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 800 }}>2</div>
+                  <span style={{ fontSize: 11, fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Choose Chapter</span>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 10 }}>
+                  {sub.chapters.map(ch => {
+                    const isSelected = selectedChapter === ch
+                    return (
+                      <button key={ch} onClick={() => setSelectedChapter(ch)} style={{
+                        padding: '12px 14px', borderRadius: 10, border: `2px solid ${isSelected ? 'transparent' : '#f1f5f9'}`,
+                        background: isSelected ? sub.grad : '#f8fafc', cursor: 'pointer', textAlign: 'left',
+                        fontSize: 12, fontWeight: 700, color: isSelected ? '#fff' : '#475569',
+                        transition: 'all 0.2s', boxShadow: isSelected ? `0 4px 12px ${sub.color}30` : 'none',
+                        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                      }}>
+                        <span>{ch}</span>
+                        {isSelected && <CheckCircle2 size={13} color="rgba(255,255,255,0.8)" />}
+                      </button>
+                    )
+                  })}
                 </div>
               </div>
             )}
 
             {/* Step 3 – Mode & Settings */}
             {selectedChapter && (
-              <div className="bg-white rounded-2xl border border-slate-100 p-6 shadow-sm animate-in fade-in slide-in-from-bottom-2 duration-200">
-                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
-                  <span className="w-5 h-5 bg-blue-600 text-white rounded-full flex items-center justify-center text-[9px] font-black">3</span>
-                  Select Mode
-                </p>
-                <div className="grid grid-cols-3 gap-4 mb-6">
-                  {MODES.map(m => (
-                    <button key={m.id} onClick={() => setSelectedMode(m.id)}
-                      className={`p-4 rounded-2xl border-2 text-center transition-all
-                        ${selectedMode === m.id ? `${m.bg} ${m.border} ring-4 ${m.ring} ring-opacity-30 shadow-lg` : 'border-slate-100 bg-slate-50 hover:bg-white hover:border-slate-200'}`}>
-                      <div className={`w-10 h-10 rounded-xl mx-auto mb-3 flex items-center justify-center ${selectedMode === m.id ? m.bg : 'bg-slate-100'}`}>
-                        <m.icon size={20} className={selectedMode === m.id ? m.text : 'text-slate-400'} />
-                      </div>
-                      <p className={`font-black text-sm ${selectedMode === m.id ? m.text : 'text-slate-700'}`}>{m.label}</p>
-                      <p className={`text-[10px] mt-0.5 ${selectedMode === m.id ? m.text + ' opacity-70' : 'text-slate-400'}`}>{m.desc}</p>
-                    </button>
-                  ))}
+              <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #f1f5f9', padding: 24, boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
+                  <div style={{ width: 22, height: 22, borderRadius: '50%', background: '#3b82f6', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 800 }}>3</div>
+                  <span style={{ fontSize: 11, fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Select Mode & Settings</span>
                 </div>
 
-                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Number of Questions</p>
-                <div className="flex gap-3 mb-6">
-                  {LIMITS.map(n => (
-                    <button key={n} onClick={() => setQuestionLimit(n)}
-                      className={`w-14 h-10 rounded-xl border-2 font-black text-sm transition-all
-                        ${questionLimit === n ? 'bg-blue-600 border-blue-600 text-white shadow-lg shadow-blue-500/25' : 'border-slate-200 text-slate-500 hover:border-blue-300 hover:text-blue-600'}`}>
-                      {n}
-                    </button>
-                  ))}
+                {/* Mode picker */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 20 }}>
+                  {MODES.map(m => {
+                    const isSelected = selectedMode === m.id
+                    return (
+                      <button key={m.id} onClick={() => setSelectedMode(m.id)} style={{
+                        padding: '16px 12px', borderRadius: 12, border: `2px solid ${isSelected ? m.color : '#e2e8f0'}`,
+                        background: isSelected ? m.bg : '#fff', cursor: 'pointer', textAlign: 'center',
+                        transition: 'all 0.2s', boxShadow: isSelected ? `0 4px 16px ${m.color}25` : 'none',
+                      }}>
+                        <div style={{ width: 36, height: 36, borderRadius: 10, margin: '0 auto 10px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: isSelected ? m.color : '#f1f5f9' }}>
+                          <m.icon size={18} color={isSelected ? '#fff' : '#94a3b8'} />
+                        </div>
+                        <div style={{ fontSize: 13, fontWeight: 800, color: isSelected ? m.color : '#334155' }}>{m.label}</div>
+                        <div style={{ fontSize: 10, color: isSelected ? m.color : '#94a3b8', marginTop: 2, opacity: 0.8 }}>{m.desc}</div>
+                      </button>
+                    )
+                  })}
                 </div>
 
-                {/* Start button */}
-                <button onClick={handleStart}
-                  className="w-full py-4 bg-gradient-to-r from-blue-600 to-violet-600 text-white rounded-2xl font-black text-base shadow-xl shadow-blue-500/25 hover:scale-[1.01] hover:shadow-2xl transition-all flex items-center justify-center gap-3">
-                  <Play size={20} />
+                {/* Q count */}
+                <div style={{ marginBottom: 20 }}>
+                  <div style={{ fontSize: 11, fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 10 }}>Number of Questions</div>
+                  <div style={{ display: 'flex', gap: 10 }}>
+                    {LIMITS.map(n => (
+                      <button key={n} onClick={() => setQuestionLimit(n)} style={{
+                        width: 52, height: 40, borderRadius: 10, border: `2px solid ${questionLimit === n ? '#3b82f6' : '#e2e8f0'}`,
+                        background: questionLimit === n ? '#3b82f6' : '#fff', color: questionLimit === n ? '#fff' : '#64748b',
+                        fontSize: 14, fontWeight: 800, cursor: 'pointer', transition: 'all 0.2s',
+                        boxShadow: questionLimit === n ? '0 4px 12px rgba(59,130,246,0.3)' : 'none',
+                      }}>
+                        {n}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Summary + Start */}
+                <div style={{ background: '#f8fafc', borderRadius: 12, padding: '14px 18px', marginBottom: 16, display: 'flex', gap: 20, alignItems: 'center', border: '1px solid #e2e8f0' }}>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 12, color: '#64748b', fontWeight: 600 }}>You selected:</div>
+                    <div style={{ fontSize: 13, fontWeight: 800, color: '#0f172a', marginTop: 2 }}>{selectedSubject} · {selectedChapter}</div>
+                  </div>
+                  <div style={{ fontSize: 12, color: '#64748b', fontWeight: 600 }}>{questionLimit} questions · {selectedMode} mode</div>
+                </div>
+
+                <button onClick={handleStart} style={{
+                  width: '100%', padding: '16px', background: 'linear-gradient(135deg, #3b82f6, #7c3aed)', border: 'none',
+                  borderRadius: 14, color: '#fff', fontSize: 15, fontWeight: 900, cursor: 'pointer',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
+                  boxShadow: '0 8px 24px rgba(79,70,229,0.3)', transition: 'transform 0.15s',
+                }}
+                  onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.01)'}
+                  onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
+                >
+                  <Play size={18} />
                   Start {selectedMode.charAt(0).toUpperCase() + selectedMode.slice(1)} — {questionLimit} Questions
-                  <ArrowRight size={18} />
+                  <ArrowRight size={16} />
                 </button>
               </div>
             )}
 
             {!selectedSubject && (
-              <div className="text-center py-8 text-slate-400 text-sm font-medium">
-                ↑ Select a subject to get started
+              <div style={{ textAlign: 'center', padding: '32px', color: '#94a3b8', fontSize: 13, fontWeight: 600 }}>
+                ↑ Select a subject above to get started
               </div>
             )}
           </div>
@@ -285,64 +305,58 @@ export default function QuizSelectionPage() {
 
         {/* ── MOCK TESTS TAB ── */}
         {tab === 'mock' && (
-          <div className="space-y-8">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
             {mtLoading ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16 }}>
                 {[0,1,2].map(i => (
-                  <div key={i} className="bg-white rounded-2xl border border-slate-100 p-5 space-y-3 animate-pulse">
-                    <div className="h-4 bg-slate-100 rounded-lg w-24" />
-                    <div className="h-5 bg-slate-100 rounded-lg w-3/4" />
-                    <div className="h-3 bg-slate-100 rounded-lg w-1/2" />
-                    <div className="h-10 bg-slate-100 rounded-xl mt-4" />
+                  <div key={i} style={{ background: '#fff', borderRadius: 16, border: '1px solid #f1f5f9', padding: 20, display: 'flex', flexDirection: 'column', gap: 10 }}>
+                    {[24, 16, 12, 40].map((h, j) => (
+                      <div key={j} style={{ height: h, background: '#f1f5f9', borderRadius: 8, animation: 'pulse 1.5s infinite' }} />
+                    ))}
                   </div>
                 ))}
               </div>
+            ) : mockTests.length === 0 ? (
+              <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #f1f5f9', padding: '48px 24px', textAlign: 'center' }}>
+                <div style={{ width: 56, height: 56, background: '#f3f0ff', borderRadius: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
+                  <Zap size={28} color="#7c3aed" />
+                </div>
+                <h3 style={{ fontSize: 16, fontWeight: 800, color: '#0f172a', margin: '0 0 6px' }}>No Mock Tests Yet</h3>
+                <p style={{ fontSize: 13, color: '#94a3b8', margin: '0 0 16px' }}>Ask your admin to schedule a mock test. Check back soon!</p>
+                <button onClick={loadMocks} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 16px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 10, fontSize: 12, fontWeight: 700, color: '#64748b', cursor: 'pointer' }}>
+                  <RefreshCw size={12} /> Refresh
+                </button>
+              </div>
             ) : (
               <>
-                {/* Live */}
                 {liveMocks.length > 0 && (
                   <div>
-                    <h2 className="font-black text-slate-900 mb-4 flex items-center gap-2">
-                      <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
-                      Live Now
+                    <h2 style={{ fontSize: 15, fontWeight: 800, color: '#0f172a', marginBottom: 14, display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#10b981', display: 'inline-block' }} /> Live Now
                     </h2>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 16 }}>
                       {liveMocks.map(mt => <MockTestCard key={mt._id} mt={mt} navigate={navigate} />)}
                     </div>
                   </div>
                 )}
-
-                {/* Upcoming */}
                 {upcomingMocks.length > 0 && (
                   <div>
-                    <h2 className="font-black text-slate-900 mb-4 flex items-center gap-2"><Clock size={16} className="text-amber-500" /> Upcoming</h2>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                    <h2 style={{ fontSize: 15, fontWeight: 800, color: '#0f172a', marginBottom: 14, display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <Clock size={15} color="#f59e0b" /> Upcoming
+                    </h2>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 16 }}>
                       {upcomingMocks.map(mt => <MockTestCard key={mt._id} mt={mt} navigate={navigate} />)}
                     </div>
                   </div>
                 )}
-
-                {/* Past */}
                 {pastMocks.length > 0 && (
                   <div>
-                    <h2 className="font-black text-slate-900 mb-4 flex items-center gap-2"><Trophy size={16} className="text-violet-500" /> Past Tests</h2>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                    <h2 style={{ fontSize: 15, fontWeight: 800, color: '#0f172a', marginBottom: 14, display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <Trophy size={15} color="#7c3aed" /> Past Tests
+                    </h2>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 16 }}>
                       {pastMocks.map(mt => <MockTestCard key={mt._id} mt={mt} navigate={navigate} />)}
                     </div>
-                  </div>
-                )}
-
-                {mockTests.length === 0 && (
-                  <div className="bg-white rounded-2xl border border-slate-100 p-12 text-center shadow-sm">
-                    <div className="w-14 h-14 bg-violet-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                      <Zap size={28} className="text-violet-400" />
-                    </div>
-                    <h3 className="font-black text-slate-900 mb-2">No Mock Tests Yet</h3>
-                    <p className="text-sm text-slate-400">Ask your admin to schedule a mock test. Check back soon!</p>
-                    <button onClick={() => { setMtLoading(true); api.get('/mock-tests').then(r => setMockTests(r.data.data || [])).catch(() => {}).finally(() => setMtLoading(false)) }}
-                      className="mt-4 px-5 py-2 bg-slate-100 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-200 transition-all flex items-center gap-1.5 mx-auto">
-                      <RefreshCw size={12} /> Refresh
-                    </button>
                   </div>
                 )}
               </>

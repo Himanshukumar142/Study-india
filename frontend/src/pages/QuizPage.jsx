@@ -3,19 +3,18 @@ import { useParams, useSearchParams, useNavigate } from 'react-router-dom'
 import api from '../services/api'
 import {
   Clock, ChevronRight, ChevronLeft, CheckCircle2, AlertCircle,
-  ShieldAlert, BookOpen, Send, Flag
+  ShieldAlert, BookOpen, Send, Flag, Sparkles, BrainCircuit, Target, Lightbulb
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 
 const fmt = (s) => `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`
 
-// ─── Question status colors for palette ──────────────────────
 const Q_STATUS = {
-  answered:  'bg-blue-600 text-white border-blue-600',
-  flagged:   'bg-amber-400 text-white border-amber-400',
-  visited:   'bg-slate-200 text-slate-600 border-slate-200',
-  current:   'ring-2 ring-offset-1 ring-blue-500 bg-white text-blue-600 border-blue-300',
-  unanswered:'bg-white text-slate-400 border-slate-200',
+  answered:  { bg: '#3b82f6', text: '#fff', border: '#3b82f6' },
+  flagged:   { bg: '#f59e0b', text: '#fff', border: '#f59e0b' },
+  visited:   { bg: '#e2e8f0', text: '#475569', border: '#e2e8f0' },
+  current:   { bg: '#fff', text: '#3b82f6', border: '#3b82f6', ring: '0 0 0 3px rgba(59,130,246,0.3)' },
+  unanswered:{ bg: '#fff', text: '#94a3b8', border: '#e2e8f0' },
 }
 
 export default function QuizPage({ isMockTest = false }) {
@@ -26,12 +25,12 @@ export default function QuizPage({ isMockTest = false }) {
   const mode  = isMockTest ? 'exam' : (searchParams.get('mode') || 'practice')
   const limit = parseInt(searchParams.get('limit') || '10')
 
-  const [phase, setPhase]       = useState('instructions') // instructions | loading | playing | submitting
+  const [phase, setPhase]       = useState('instructions')
   const [questions, setQuestions] = useState([])
   const [attemptId, setAttemptId] = useState(null)
   const [current, setCurrent]   = useState(0)
-  const [answers, setAnswers]   = useState({})   // { qId: option }
-  const [flagged, setFlagged]   = useState({})   // { qId: bool }
+  const [answers, setAnswers]   = useState({})
+  const [flagged, setFlagged]   = useState({})
   const [visited, setVisited]   = useState({})
   const [timeLeft, setTimeLeft] = useState(0)
   const [saving, setSaving]     = useState(false)
@@ -41,14 +40,12 @@ export default function QuizPage({ isMockTest = false }) {
   const qStartRef = useRef(Date.now())
   const timerRef  = useRef(null)
 
-  // Load bookmarks
   useEffect(() => {
     api.get('/bookmarks').then(r => {
       setBookmarks(r.data.data.filter(b => b.type === 'question').map(b => b.itemId?._id || b.itemId))
     }).catch(() => {})
   }, [])
 
-  // Anti-cheat: tab switch detection in exam mode
   useEffect(() => {
     if (phase !== 'playing' || mode !== 'exam') return
     const handler = () => {
@@ -64,7 +61,6 @@ export default function QuizPage({ isMockTest = false }) {
     return () => document.removeEventListener('visibilitychange', handler)
   }, [phase, mode, attemptId])
 
-  // Timer
   useEffect(() => {
     if (phase !== 'playing' || mode === 'practice' || timeLeft <= 0) return
     timerRef.current = setInterval(() => {
@@ -89,7 +85,8 @@ export default function QuizPage({ isMockTest = false }) {
         const r = await api.post(`/mock-tests/${mockTestId}/start`)
         data = r.data
       } else {
-        const r = await api.post('/quizzes/start', { subject, chapter, mode, limit })
+        // Use the new AI generator endpoint instead of static db
+        const r = await api.post('/ai/topic-quiz/start', { subject, chapter, mode, limit })
         data = r.data
       }
       setQuestions(data.data.questions)
@@ -100,8 +97,10 @@ export default function QuizPage({ isMockTest = false }) {
       setVisited({ [data.data.questions[0]?._id]: true })
       qStartRef.current = Date.now()
       if (mode === 'exam') document.documentElement.requestFullscreen().catch(() => {})
+      
+      if (!isMockTest) toast.success(`Generated ${data.data.questions.length} questions successfully!`)
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to start. Try again.')
+      toast.error(err.response?.data?.message || 'Failed to generate questions. Try again.')
       setPhase('instructions')
     }
   }
@@ -159,59 +158,83 @@ export default function QuizPage({ isMockTest = false }) {
 
   // ─── INSTRUCTIONS ───────────────────────────────────────────
   if (phase === 'instructions') {
-    const rules = mode === 'practice'
-      ? ['No timer — take your time on each question.', 'Answers are saved automatically.', 'You can bookmark questions for revision.', 'Navigate freely between questions.']
-      : mode === 'exam' || isMockTest
-      ? ['Fullscreen mode is required throughout the exam.', 'Switching tabs or minimizing ends the test immediately.', 'Timer begins as soon as you start — no pauses.', 'All answers are auto-saved. Submit when done.', 'Negative marking applies: +4 correct, -1 wrong.']
-      : ['Timer starts immediately after you begin.', 'Navigate freely — all answers are auto-saved.', 'You can flag questions and revisit them.', 'Submit when you are ready or when time runs out.']
+    const isPractice = mode === 'practice'
+    const isExam = mode === 'exam' || isMockTest
 
     return (
-      <div className="min-h-full bg-[#f8fafc] flex items-center justify-center p-6">
-        <div className="bg-white rounded-3xl border border-slate-100 shadow-2xl shadow-slate-200/60 max-w-lg w-full p-8">
-          {/* Badge */}
-          <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-black uppercase mb-6 ${mode === 'exam' || isMockTest ? 'bg-rose-50 text-rose-600 border border-rose-200' : mode === 'test' ? 'bg-blue-50 text-blue-600 border border-blue-200' : 'bg-emerald-50 text-emerald-600 border border-emerald-200'}`}>
-            {mode === 'exam' || isMockTest ? <ShieldAlert size={13} /> : <Clock size={13} />}
-            {isMockTest ? 'Mock Test — Exam Mode' : `${mode.charAt(0).toUpperCase() + mode.slice(1)} Mode`}
+      <div style={{ minHeight: '100%', background: '#f8fafc', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+        <div style={{ background: '#fff', borderRadius: 24, border: '1px solid #e2e8f0', boxShadow: '0 20px 40px rgba(0,0,0,0.08)', maxWidth: 640, width: '100%', overflow: 'hidden' }}>
+          
+          {/* Header Banner */}
+          <div style={{ background: isExam ? 'linear-gradient(135deg, #ef4444, #991b1b)' : isPractice ? 'linear-gradient(135deg, #10b981, #047857)' : 'linear-gradient(135deg, #3b82f6, #1d4ed8)', padding: '40px 32px', color: '#fff', position: 'relative', overflow: 'hidden' }}>
+            <div style={{ position: 'absolute', right: -20, top: -20, width: 150, height: 150, background: 'rgba(255,255,255,0.1)', borderRadius: '50%' }} />
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '6px 12px', background: 'rgba(255,255,255,0.2)', borderRadius: 12, fontSize: 12, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 16 }}>
+              {isExam ? <ShieldAlert size={14} /> : isPractice ? <Lightbulb size={14} /> : <Target size={14} />}
+              {isMockTest ? 'Mock Test' : `${mode} Mode`}
+            </div>
+            <h1 style={{ fontSize: 28, fontWeight: 900, margin: '0 0 8px', letterSpacing: '-0.02em' }}>{isMockTest ? 'Mock Test' : subject}</h1>
+            <p style={{ fontSize: 15, opacity: 0.9, margin: 0, fontWeight: 500 }}>
+              {isMockTest ? 'Read the instructions carefully before starting.' : `${chapter} · ${limit} AI-Generated Questions`}
+            </p>
           </div>
 
-          <h1 className="text-2xl font-black text-slate-900 mb-1">
-            {isMockTest ? 'Mock Test' : `${subject}`}
-          </h1>
-          <p className="text-slate-400 text-sm mb-6">{isMockTest ? 'Read the instructions carefully before starting.' : `Chapter: ${chapter} · ${limit} questions`}</p>
-
-          {/* Stats row */}
-          <div className="grid grid-cols-3 gap-3 mb-6">
-            {[
-              { l: 'Questions', v: isMockTest ? '—' : limit },
-              { l: 'Duration',  v: mode === 'practice' ? 'No limit' : isMockTest ? '3 hrs' : `${limit * 1.5} min` },
-              { l: 'Marking',   v: mode === 'practice' ? '+4 / 0' : '+4 / -1' },
-            ].map(s => (
-              <div key={s.l} className="bg-slate-50 rounded-xl p-3 text-center border border-slate-100">
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{s.l}</p>
-                <p className="font-black text-slate-900 text-sm mt-0.5">{s.v}</p>
-              </div>
-            ))}
-          </div>
-
-          {/* Rules */}
-          <div className="space-y-2.5 mb-8">
-            {rules.map((r, i) => (
-              <div key={i} className="flex items-start gap-3">
-                <div className="w-5 h-5 rounded-full bg-blue-50 flex items-center justify-center flex-shrink-0 mt-0.5">
-                  <span className="text-[9px] font-black text-blue-600">{i + 1}</span>
+          <div style={{ padding: 32 }}>
+            {!isMockTest && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '16px 20px', background: 'linear-gradient(to right, #eff6ff, #f8fafc)', borderRadius: 16, border: '1px solid #bfdbfe', marginBottom: 24 }}>
+                <div style={{ width: 40, height: 40, background: '#3b82f6', borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', flexShrink: 0, boxShadow: '0 4px 12px rgba(59,130,246,0.3)' }}>
+                  <BrainCircuit size={20} />
                 </div>
-                <p className="text-sm text-slate-600 leading-relaxed">{r}</p>
+                <div>
+                  <h4 style={{ fontSize: 14, fontWeight: 800, color: '#1e3a8a', margin: '0 0 2px' }}>AI-Powered Generation</h4>
+                  <p style={{ fontSize: 12, color: '#64748b', margin: 0, lineHeight: 1.4 }}>Questions are generated in real-time by Gemini specifically for this topic to ensure no repetition.</p>
+                </div>
               </div>
-            ))}
-          </div>
+            )}
 
-          <button onClick={startQuiz}
-            className="w-full py-4 bg-gradient-to-r from-blue-600 to-violet-600 text-white rounded-2xl font-black text-base shadow-xl shadow-blue-500/25 hover:scale-[1.01] transition-all flex items-center justify-center gap-3">
-            <Send size={18} /> I Understand — Start Now
-          </button>
-          <button onClick={() => navigate(-1)} className="w-full mt-3 py-2.5 text-slate-400 text-sm font-semibold hover:text-slate-600 transition-colors">
-            ← Go back
-          </button>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, marginBottom: 32 }}>
+              {[
+                { l: 'Questions', v: isMockTest ? '—' : limit, icon: Target },
+                { l: 'Duration',  v: isPractice ? 'No limit' : isMockTest ? '3 hrs' : `${limit * 1.5} min`, icon: Clock },
+                { l: 'Marking',   v: isPractice ? '+4 / 0' : '+4 / -1', icon: CheckCircle2 },
+              ].map(s => (
+                <div key={s.l} style={{ background: '#f8fafc', borderRadius: 16, padding: 16, border: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
+                  <s.icon size={18} color="#94a3b8" style={{ marginBottom: 8 }} />
+                  <div style={{ fontSize: 16, fontWeight: 900, color: '#0f172a' }}>{s.v}</div>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', marginTop: 4 }}>{s.l}</div>
+                </div>
+              ))}
+            </div>
+
+            <div style={{ marginBottom: 32 }}>
+              <h3 style={{ fontSize: 14, fontWeight: 800, color: '#0f172a', marginBottom: 16, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Rules & Instructions</h3>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                {(isPractice
+                  ? ['No timer — take your time on each question.', 'Answers are saved automatically.', 'You can bookmark questions for revision.', 'Navigate freely between questions.']
+                  : isExam
+                  ? ['Fullscreen mode is required throughout the exam.', 'Switching tabs or minimizing ends the test immediately.', 'Timer begins as soon as you start — no pauses.', 'All answers are auto-saved. Submit when done.', 'Negative marking applies: +4 correct, -1 wrong.']
+                  : ['Timer starts immediately after you begin.', 'Navigate freely — all answers are auto-saved.', 'You can flag questions and revisit them.', 'Submit when you are ready or when time runs out.']
+                ).map((r, i) => (
+                  <div key={i} style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+                    <div style={{ width: 24, height: 24, borderRadius: '50%', background: '#eff6ff', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, color: '#3b82f6', fontSize: 11, fontWeight: 800 }}>{i + 1}</div>
+                    <p style={{ fontSize: 14, color: '#475569', margin: 0, lineHeight: 1.5, paddingTop: 2 }}>{r}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', gap: 16 }}>
+              <button onClick={() => navigate(-1)} style={{ padding: '16px 24px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 14, fontSize: 14, fontWeight: 800, color: '#64748b', cursor: 'pointer', transition: 'all 0.2s' }}>
+                Go Back
+              </button>
+              <button onClick={startQuiz} style={{ flex: 1, padding: '16px 24px', background: isExam ? 'linear-gradient(135deg, #ef4444, #dc2626)' : 'linear-gradient(135deg, #3b82f6, #4f46e5)', border: 'none', borderRadius: 14, fontSize: 15, fontWeight: 900, color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, boxShadow: isExam ? '0 8px 24px rgba(239,68,68,0.3)' : '0 8px 24px rgba(59,130,246,0.3)', transition: 'transform 0.15s' }}
+                onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.02)'}
+                onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
+              >
+                {!isMockTest && <Sparkles size={18} />}
+                {isMockTest ? 'Start Mock Test' : 'Generate & Start'}
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     )
@@ -220,13 +243,17 @@ export default function QuizPage({ isMockTest = false }) {
   // ─── LOADING ─────────────────────────────────────────────────
   if (phase === 'loading' || phase === 'submitting') {
     return (
-      <div className="min-h-full bg-[#f8fafc] flex items-center justify-center">
-        <div className="text-center space-y-4">
-          <div className="w-14 h-14 relative mx-auto">
-            <div className="absolute inset-0 border-4 border-slate-200 rounded-full" />
-            <div className="absolute inset-0 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
+      <div style={{ minHeight: '100%', background: '#f8fafc', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', gap: 20 }}>
+          <div style={{ width: 64, height: 64, position: 'relative', margin: '0 auto' }}>
+            <div style={{ position: 'absolute', inset: 0, border: '4px solid #e2e8f0', borderRadius: '50%' }} />
+            <div style={{ position: 'absolute', inset: 0, border: '4px solid #3b82f6', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
+            {phase === 'loading' && <BrainCircuit size={24} color="#3b82f6" style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)' }} />}
           </div>
-          <p className="text-sm font-bold text-slate-400">{phase === 'loading' ? 'Loading questions…' : 'Submitting your answers…'}</p>
+          <div>
+            <h3 style={{ fontSize: 18, fontWeight: 800, color: '#0f172a', margin: '0 0 6px' }}>{phase === 'loading' ? 'Generating Questions...' : 'Submitting Answers...'}</h3>
+            <p style={{ fontSize: 13, color: '#64748b', margin: 0 }}>{phase === 'loading' ? 'AI is crafting fresh questions just for you.' : 'Calculating your results.'}</p>
+          </div>
         </div>
       </div>
     )
@@ -235,13 +262,13 @@ export default function QuizPage({ isMockTest = false }) {
   // ─── EMPTY ───────────────────────────────────────────────────
   if (phase === 'playing' && questions.length === 0) {
     return (
-      <div className="min-h-full flex flex-col items-center justify-center gap-5 p-8">
-        <div className="w-16 h-16 bg-rose-50 rounded-2xl flex items-center justify-center">
-          <AlertCircle size={32} className="text-rose-500" />
+      <div style={{ minHeight: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 20, padding: 32, background: '#f8fafc' }}>
+        <div style={{ width: 64, height: 64, background: '#fef2f2', borderRadius: 16, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <AlertCircle size={32} color="#ef4444" />
         </div>
-        <h3 className="text-xl font-black text-slate-900">No Questions Found</h3>
-        <p className="text-slate-400 text-sm text-center max-w-xs">No questions exist for this topic yet. Ask your admin to add questions to the question bank.</p>
-        <button onClick={() => navigate('/quiz')} className="px-6 py-2.5 bg-blue-600 text-white rounded-xl font-bold text-sm hover:bg-blue-700 transition-all">
+        <h3 style={{ fontSize: 20, fontWeight: 900, color: '#0f172a', margin: 0 }}>Generation Failed</h3>
+        <p style={{ fontSize: 14, color: '#64748b', textAlign: 'center', maxWidth: 400, margin: 0, lineHeight: 1.5 }}>We couldn't generate questions for this topic at the moment. Please try again or choose a different chapter.</p>
+        <button onClick={() => navigate('/quiz')} style={{ padding: '12px 24px', background: '#3b82f6', color: '#fff', borderRadius: 12, fontWeight: 800, border: 'none', cursor: 'pointer' }}>
           Back to Quiz Center
         </button>
       </div>
@@ -265,122 +292,117 @@ export default function QuizPage({ isMockTest = false }) {
   }
 
   return (
-    <div className="flex h-full bg-[#f8fafc]" style={{ minHeight: '100vh' }}>
+    <div style={{ display: 'flex', height: '100%', background: '#f8fafc', overflow: 'hidden' }}>
 
       {/* ── Main area ── */}
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0 }}>
 
         {/* Top bar */}
-        <div className="bg-white border-b border-slate-100 px-5 py-3 flex items-center gap-4 flex-shrink-0 shadow-sm">
-          <div className="flex-1 min-w-0">
-            <p className="font-black text-slate-900 text-sm truncate">{isMockTest ? 'Mock Test' : `${subject} · ${chapter}`}</p>
-            <p className="text-[11px] text-slate-400 font-semibold mt-0.5">
-              Q{current + 1}/{questions.length} · {answeredCount} answered · {flaggedCount} flagged
-              {saving && <span className="ml-2 text-blue-500 animate-pulse">saving…</span>}
+        <div style={{ background: '#fff', borderBottom: '1px solid #f1f5f9', padding: '12px 24px', display: 'flex', alignItems: 'center', gap: 16, flexShrink: 0, boxShadow: '0 1px 4px rgba(0,0,0,0.02)' }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <p style={{ fontSize: 14, fontWeight: 900, color: '#0f172a', margin: '0 0 2px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{isMockTest ? 'Mock Test' : `${subject} · ${chapter}`}</p>
+            <p style={{ fontSize: 11, color: '#64748b', fontWeight: 600, margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span>Q{current + 1}/{questions.length}</span>
+              <span style={{ width: 4, height: 4, background: '#cbd5e1', borderRadius: '50%' }} />
+              <span>{answeredCount} answered</span>
+              <span style={{ width: 4, height: 4, background: '#cbd5e1', borderRadius: '50%' }} />
+              <span>{flaggedCount} flagged</span>
+              {saving && <span style={{ color: '#3b82f6', animation: 'pulse 1s infinite' }}>saving…</span>}
             </p>
           </div>
 
           {/* Progress bar */}
-          <div className="hidden sm:block w-32 h-1.5 bg-slate-100 rounded-full overflow-hidden">
-            <div className="h-full bg-gradient-to-r from-blue-500 to-violet-500 rounded-full transition-all duration-300"
-              style={{ width: `${(answeredCount / questions.length) * 100}%` }} />
+          <div style={{ display: 'none', '@media (minWidth: 640px)': { display: 'block' }, width: 140, height: 6, background: '#f1f5f9', borderRadius: 10, overflow: 'hidden' }}>
+            <div style={{ height: '100%', background: 'linear-gradient(90deg, #3b82f6, #8b5cf6)', borderRadius: 10, transition: 'width 0.3s ease', width: `${(answeredCount / questions.length) * 100}%` }} />
           </div>
 
           {/* Timer */}
           {mode !== 'practice' && (
-            <div className={`flex items-center gap-2 px-4 py-2 rounded-xl font-black text-sm transition-all duration-300 tabular-nums flex-shrink-0
-              ${isLowTime ? 'bg-rose-600 text-white shadow-lg shadow-rose-500/30 scale-105' : 'bg-slate-100 text-slate-700'}`}>
-              <Clock size={15} className={isLowTime ? 'animate-pulse' : ''} />
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 16px', borderRadius: 12, fontSize: 14, fontWeight: 900, flexShrink: 0, background: isLowTime ? '#ef4444' : '#f8fafc', color: isLowTime ? '#fff' : '#0f172a', boxShadow: isLowTime ? '0 4px 12px rgba(239,68,68,0.3)' : 'none', transform: isLowTime ? 'scale(1.05)' : 'none', transition: 'all 0.3s', fontVariantNumeric: 'tabular-nums' }}>
+              <Clock size={16} />
               {fmt(timeLeft)}
             </div>
           )}
-
-          <button onClick={() => setShowPanel(p => !p)}
-            className="hidden md:flex items-center gap-1.5 px-3 py-2 bg-slate-100 rounded-xl text-xs font-bold text-slate-500 hover:bg-slate-200 transition-all flex-shrink-0">
-            {showPanel ? 'Hide' : 'Show'} Panel
-          </button>
         </div>
 
         {/* Question area */}
-        <div className="flex-1 overflow-y-auto p-5 lg:p-8">
-          <div className="max-w-2xl mx-auto">
+        <div style={{ flex: 1, overflowY: 'auto', padding: '32px 24px' }}>
+          <div style={{ maxWidth: 800, margin: '0 auto' }}>
 
             {/* Question card */}
-            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6 mb-5">
+            <div style={{ background: '#fff', borderRadius: 24, border: '1px solid #f1f5f9', boxShadow: '0 4px 20px rgba(0,0,0,0.03)', padding: 32, marginBottom: 24 }}>
+              
               {/* Tags */}
-              <div className="flex items-center gap-2 mb-4 flex-wrap">
-                <span className="px-2.5 py-1 bg-blue-50 text-blue-600 text-[10px] font-black rounded-lg border border-blue-100 uppercase">{q.subject}</span>
-                <span className="px-2.5 py-1 bg-slate-50 text-slate-500 text-[10px] font-black rounded-lg border border-slate-100 uppercase">{q.chapter}</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 24, flexWrap: 'wrap' }}>
+                <span style={{ padding: '4px 10px', background: '#eff6ff', color: '#2563eb', fontSize: 10, fontWeight: 800, borderRadius: 8, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{q.subject}</span>
+                <span style={{ padding: '4px 10px', background: '#f8fafc', color: '#64748b', fontSize: 10, fontWeight: 800, borderRadius: 8, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{q.chapter}</span>
                 {q.difficulty && (
-                  <span className={`px-2.5 py-1 text-[10px] font-black rounded-lg border uppercase ${q.difficulty === 'hard' ? 'bg-rose-50 text-rose-600 border-rose-100' : q.difficulty === 'medium' ? 'bg-amber-50 text-amber-600 border-amber-100' : 'bg-emerald-50 text-emerald-600 border-emerald-100'}`}>{q.difficulty}</span>
+                  <span style={{ padding: '4px 10px', fontSize: 10, fontWeight: 800, borderRadius: 8, textTransform: 'uppercase', letterSpacing: '0.05em', ...(q.difficulty === 'hard' ? { background: '#fef2f2', color: '#dc2626' } : q.difficulty === 'medium' ? { background: '#fffbeb', color: '#d97706' } : { background: '#ecfdf5', color: '#059669' }) }}>{q.difficulty}</span>
                 )}
-                <div className="ml-auto flex gap-2">
-                  <button onClick={toggleFlag} title="Flag for review"
-                    className={`p-2 rounded-xl border transition-all ${isFlagged ? 'bg-amber-400 border-amber-400 text-white' : 'bg-white border-slate-200 text-slate-400 hover:border-amber-300 hover:text-amber-500'}`}>
-                    <Flag size={14} />
+                
+                <div style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
+                  <button onClick={toggleFlag} title="Flag for review" style={{ padding: 8, borderRadius: 10, border: '1px solid', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s', ...(isFlagged ? { background: '#f59e0b', borderColor: '#f59e0b', color: '#fff' } : { background: '#fff', borderColor: '#e2e8f0', color: '#94a3b8' }) }}>
+                    <Flag size={16} />
                   </button>
-                  <button onClick={() => toggleBookmark(q._id)} title="Bookmark"
-                    className={`p-2 rounded-xl border transition-all ${bookmarks.includes(q._id) ? 'bg-blue-600 border-blue-600 text-white' : 'bg-white border-slate-200 text-slate-400 hover:border-blue-300 hover:text-blue-500'}`}>
-                    <BookOpen size={14} />
+                  <button onClick={() => toggleBookmark(q._id)} title="Bookmark" style={{ padding: 8, borderRadius: 10, border: '1px solid', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s', ...(bookmarks.includes(q._id) ? { background: '#3b82f6', borderColor: '#3b82f6', color: '#fff' } : { background: '#fff', borderColor: '#e2e8f0', color: '#94a3b8' }) }}>
+                    <BookOpen size={16} />
                   </button>
                 </div>
               </div>
 
-              {/* Question number + text */}
-              <div className="flex gap-4 mb-6">
-                <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-blue-600 to-violet-600 flex items-center justify-center text-white font-black text-xs flex-shrink-0 shadow-md">
+              {/* Question text */}
+              <div style={{ display: 'flex', gap: 20, marginBottom: 32 }}>
+                <div style={{ width: 40, height: 40, borderRadius: 12, background: 'linear-gradient(135deg, #3b82f6, #6366f1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 16, fontWeight: 900, flexShrink: 0, boxShadow: '0 4px 12px rgba(59,130,246,0.2)' }}>
                   {current + 1}
                 </div>
-                <p className="text-slate-900 font-semibold text-base leading-relaxed">{q.question}</p>
+                <p style={{ fontSize: 16, fontWeight: 600, color: '#0f172a', margin: 0, lineHeight: 1.6, paddingTop: 6 }}>{q.question}</p>
               </div>
 
               {/* Options */}
-              <div className="space-y-3">
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                 {q.options ? Object.entries(q.options).map(([key, val]) => {
                   const isSelected = answered === key
                   return (
-                    <button key={key} onClick={() => selectAnswer(key)}
-                      className={`w-full text-left px-5 py-4 rounded-xl border-2 flex items-center gap-4 transition-all duration-150 font-medium text-sm
-                        ${isSelected
-                          ? 'bg-blue-600 border-blue-600 text-white shadow-lg shadow-blue-500/20'
-                          : 'bg-white border-slate-200 text-slate-700 hover:border-blue-300 hover:bg-blue-50 hover:shadow-md'}`}>
-                      <span className={`w-8 h-8 rounded-lg flex items-center justify-center font-black text-xs flex-shrink-0 transition-all
-                        ${isSelected ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-500'}`}>
+                    <button key={key} onClick={() => selectAnswer(key)} style={{
+                      width: '100%', textAlign: 'left', padding: '16px 20px', borderRadius: 16, border: `2px solid ${isSelected ? '#3b82f6' : '#f1f5f9'}`,
+                      background: isSelected ? '#3b82f6' : '#fff', color: isSelected ? '#fff' : '#334155',
+                      display: 'flex', alignItems: 'center', gap: 16, fontSize: 14, fontWeight: 600, cursor: 'pointer',
+                      transition: 'all 0.2s', boxShadow: isSelected ? '0 8px 20px rgba(59,130,246,0.2)' : '0 2px 4px rgba(0,0,0,0.02)'
+                    }}
+                    onMouseEnter={e => { if(!isSelected) e.currentTarget.style.borderColor = '#bfdbfe' }}
+                    onMouseLeave={e => { if(!isSelected) e.currentTarget.style.borderColor = '#f1f5f9' }}
+                    >
+                      <span style={{ width: 32, height: 32, borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 900, flexShrink: 0, ...(isSelected ? { background: 'rgba(255,255,255,0.2)', color: '#fff' } : { background: '#f8fafc', color: '#64748b' }) }}>
                         {key}
                       </span>
-                      <span className="flex-1">{val}</span>
-                      {isSelected && <CheckCircle2 size={18} className="text-white/80 flex-shrink-0" />}
+                      <span style={{ flex: 1, lineHeight: 1.5 }}>{val}</span>
+                      {isSelected && <CheckCircle2 size={20} color="rgba(255,255,255,0.9)" style={{ flexShrink: 0 }} />}
                     </button>
                   )
-                }) : (
-                  <input type="text" value={answered || ''} onChange={e => selectAnswer(e.target.value)}
-                    placeholder="Type your answer…"
-                    className="w-full px-4 py-3 border-2 border-slate-200 rounded-xl text-sm outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all" />
-                )}
+                }) : null}
               </div>
             </div>
 
             {/* Navigation */}
-            <div className="flex items-center justify-between gap-3">
-              <button onClick={() => goTo(current - 1)} disabled={current === 0}
-                className="flex items-center gap-2 px-5 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-bold text-slate-600 hover:bg-slate-50 disabled:opacity-30 disabled:cursor-not-allowed transition-all shadow-sm">
-                <ChevronLeft size={16} /> Prev
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <button onClick={() => goTo(current - 1)} disabled={current === 0} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '12px 24px', background: '#fff', border: '1px solid #e2e8f0', borderRadius: 14, fontSize: 14, fontWeight: 800, color: '#475569', cursor: current === 0 ? 'not-allowed' : 'pointer', opacity: current === 0 ? 0.5 : 1, transition: 'all 0.2s', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
+                <ChevronLeft size={18} /> Previous
               </button>
 
-              <button onClick={toggleFlag}
-                className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold border transition-all ${isFlagged ? 'bg-amber-400 text-white border-amber-400' : 'bg-white text-amber-600 border-amber-200 hover:bg-amber-50'}`}>
-                <Flag size={13} /> {isFlagged ? 'Flagged' : 'Flag'}
+              <button onClick={toggleFlag} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '12px 24px', borderRadius: 14, fontSize: 14, fontWeight: 800, border: `1px solid ${isFlagged ? '#f59e0b' : '#fde68a'}`, background: isFlagged ? '#f59e0b' : '#fffbeb', color: isFlagged ? '#fff' : '#d97706', cursor: 'pointer', transition: 'all 0.2s' }}>
+                <Flag size={16} /> {isFlagged ? 'Flagged' : 'Flag Question'}
               </button>
 
               {current < questions.length - 1 ? (
-                <button onClick={() => goTo(current + 1)}
-                  className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-blue-600 to-violet-600 text-white rounded-xl text-sm font-bold shadow-lg shadow-blue-500/20 hover:scale-[1.02] transition-all">
-                  Next <ChevronRight size={16} />
+                <button onClick={() => goTo(current + 1)} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '12px 24px', background: 'linear-gradient(135deg, #3b82f6, #4f46e5)', border: 'none', borderRadius: 14, fontSize: 14, fontWeight: 800, color: '#fff', cursor: 'pointer', transition: 'all 0.2s', boxShadow: '0 4px 12px rgba(59,130,246,0.3)' }}
+                  onMouseEnter={e => e.currentTarget.style.transform = 'translateY(-1px)'}
+                  onMouseLeave={e => e.currentTarget.style.transform = 'none'}
+                >
+                  Next <ChevronRight size={18} />
                 </button>
               ) : (
-                <button onClick={() => doSubmit()}
-                  className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 text-white rounded-xl text-sm font-black shadow-lg shadow-emerald-500/20 hover:scale-[1.02] transition-all">
-                  <Send size={15} /> Submit
+                <button onClick={() => doSubmit()} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '12px 24px', background: 'linear-gradient(135deg, #10b981, #059669)', border: 'none', borderRadius: 14, fontSize: 14, fontWeight: 900, color: '#fff', cursor: 'pointer', transition: 'all 0.2s', boxShadow: '0 4px 12px rgba(16,185,129,0.3)' }}>
+                  <Send size={16} /> Submit Test
                 </button>
               )}
             </div>
@@ -390,43 +412,59 @@ export default function QuizPage({ isMockTest = false }) {
 
       {/* ── Right Panel: Question Palette ── */}
       {showPanel && (
-        <div className="hidden md:flex flex-col w-72 bg-white border-l border-slate-100 flex-shrink-0 shadow-lg">
-          <div className="p-4 border-b border-slate-100">
-            <p className="font-black text-slate-900 text-sm">Question Palette</p>
-            <div className="flex flex-wrap gap-3 mt-3 text-[10px] font-bold">
-              <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-blue-600 inline-block" />Answered</span>
-              <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-amber-400 inline-block" />Flagged</span>
-              <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-slate-200 inline-block" />Visited</span>
-              <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-white border border-slate-300 inline-block" />Not visited</span>
+        <div style={{ display: 'flex', flexDirection: 'column', width: 320, background: '#fff', borderLeft: '1px solid #f1f5f9', flexShrink: 0, boxShadow: '-4px 0 24px rgba(0,0,0,0.02)' }}>
+          <div style={{ padding: '24px 24px 16px', borderBottom: '1px solid #f1f5f9' }}>
+            <h3 style={{ fontSize: 15, fontWeight: 900, color: '#0f172a', margin: '0 0 16px' }}>Question Palette</h3>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}><div style={{ width: 12, height: 12, borderRadius: 4, background: Q_STATUS.answered.bg }} /> <span style={{ fontSize: 11, fontWeight: 700, color: '#475569' }}>Answered</span></div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}><div style={{ width: 12, height: 12, borderRadius: 4, background: Q_STATUS.flagged.bg }} /> <span style={{ fontSize: 11, fontWeight: 700, color: '#475569' }}>Flagged</span></div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}><div style={{ width: 12, height: 12, borderRadius: 4, background: Q_STATUS.visited.bg }} /> <span style={{ fontSize: 11, fontWeight: 700, color: '#475569' }}>Visited</span></div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}><div style={{ width: 12, height: 12, borderRadius: 4, background: Q_STATUS.unanswered.bg, border: '1px solid #e2e8f0' }} /> <span style={{ fontSize: 11, fontWeight: 700, color: '#475569' }}>Not Visited</span></div>
             </div>
           </div>
 
-          <div className="flex-1 overflow-y-auto p-4">
-            <div className="grid grid-cols-5 gap-2">
-              {questions.map((ques, idx) => (
-                <button key={ques._id} onClick={() => goTo(idx)}
-                  className={`w-10 h-10 rounded-xl border-2 text-xs font-black transition-all hover:scale-110 ${getQStatus(idx)}`}>
-                  {idx + 1}
-                </button>
-              ))}
+          <div style={{ flex: 1, overflowY: 'auto', padding: 24 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 10 }}>
+              {questions.map((ques, idx) => {
+                const s = getQStatus(idx)
+                return (
+                  <button key={ques._id} onClick={() => goTo(idx)} style={{
+                    aspectRatio: '1/1', borderRadius: 12, fontSize: 13, fontWeight: 800, cursor: 'pointer', transition: 'all 0.2s',
+                    background: s.bg, color: s.text, border: `2px solid ${s.border}`,
+                    boxShadow: s.ring ? s.ring : 'none',
+                  }}
+                  onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.1)'}
+                  onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
+                  >
+                    {idx + 1}
+                  </button>
+                )
+              })}
             </div>
           </div>
 
-          {/* Stats */}
-          <div className="p-4 border-t border-slate-100 space-y-2">
-            {[
-              { l: 'Answered',   v: answeredCount,                                         c: 'text-blue-600' },
-              { l: 'Flagged',    v: flaggedCount,                                           c: 'text-amber-600' },
-              { l: 'Remaining',  v: questions.length - answeredCount,                       c: 'text-slate-500' },
-            ].map(s => (
-              <div key={s.l} className="flex justify-between text-xs">
-                <span className="text-slate-400 font-semibold">{s.l}</span>
-                <span className={`font-black ${s.c}`}>{s.v}</span>
+          {/* Stats & Submit */}
+          <div style={{ padding: 24, borderTop: '1px solid #f1f5f9', background: '#fafafa' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 20 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: 12, fontWeight: 700, color: '#64748b' }}>Answered</span>
+                <span style={{ fontSize: 14, fontWeight: 900, color: '#3b82f6' }}>{answeredCount}</span>
               </div>
-            ))}
-            <button onClick={() => doSubmit()}
-              className="w-full mt-3 py-3 bg-gradient-to-r from-emerald-600 to-teal-600 text-white rounded-xl text-xs font-black shadow-lg shadow-emerald-500/20 hover:scale-[1.01] transition-all flex items-center justify-center gap-2">
-              <Send size={13} /> Submit Test
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: 12, fontWeight: 700, color: '#64748b' }}>Flagged</span>
+                <span style={{ fontSize: 14, fontWeight: 900, color: '#f59e0b' }}>{flaggedCount}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: 12, fontWeight: 700, color: '#64748b' }}>Remaining</span>
+                <span style={{ fontSize: 14, fontWeight: 900, color: '#0f172a' }}>{questions.length - answeredCount}</span>
+              </div>
+            </div>
+
+            <button onClick={() => doSubmit()} style={{ width: '100%', padding: '16px', background: 'linear-gradient(135deg, #10b981, #059669)', border: 'none', borderRadius: 14, fontSize: 15, fontWeight: 900, color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, boxShadow: '0 8px 24px rgba(16,185,129,0.3)', transition: 'all 0.2s' }}
+              onMouseEnter={e => e.currentTarget.style.transform = 'translateY(-2px)'}
+              onMouseLeave={e => e.currentTarget.style.transform = 'none'}
+            >
+              <Send size={18} /> Submit Assessment
             </button>
           </div>
         </div>
