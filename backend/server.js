@@ -1,4 +1,3 @@
-// JEE/NEET Platform Server
 require('dotenv').config();
 require('express-async-errors');
 const express = require('express');
@@ -12,7 +11,6 @@ const errorHandler = require('./src/middleware/errorHandler.middleware');
 
 const { globalLimiter, authLimiter, aiLimiter, quizLimiter } = require('./src/middleware/rateLimiter.middleware');
 
-// Routes
 const authRoutes = require('./src/routes/auth.routes');
 const userRoutes = require('./src/routes/user.routes');
 const contentRoutes = require('./src/routes/content.routes');
@@ -28,10 +26,8 @@ const aiRoutes = require('./src/routes/ai.routes');
 
 const app = express();
 
-// Connect DB
 connectDB();
 
-// Security middleware
 app.use(helmet());
 app.use(cors({
   origin: [process.env.CLIENT_URL, 'http://localhost:5173', 'http://localhost:5174'].filter(Boolean),
@@ -39,25 +35,20 @@ app.use(cors({
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
 }));
 
-// Body parsing
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(cookieParser());
 
-// Rate limiting
 app.use('/api', globalLimiter);
 
-// Logging
 if (process.env.NODE_ENV !== 'production') {
   app.use(morgan('dev'));
 }
 
-// Health check
 app.get('/api/health', (req, res) => {
   res.json({ status: 'OK', timestamp: new Date().toISOString() });
 });
 
-// API Routes
 app.use('/api/auth', authLimiter, authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/content', contentRoutes);
@@ -81,16 +72,13 @@ app.use('/api/syllabus', require('./src/routes/syllabus.routes'));
 app.use('/api/notes', require('./src/routes/note.routes'));
 app.use('/api/badges', require('./src/routes/badge.routes'));
 
-// 404 handler
 app.use((req, res) => {
   res.status(404).json({ success: false, message: 'Route not found' });
 });
 
-// Centralized error handler
 app.use(errorHandler);
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT} in ${process.env.NODE_ENV || 'development'} mode`);
 });
-// Restart triggered for .env reload

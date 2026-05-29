@@ -1,4 +1,3 @@
-// API Gateway - JEE/NEET Platform
 const path = require('path');
 require('dotenv').config({ path: path.join(__dirname, '../../.env') });
 require('dotenv').config({ path: path.join(__dirname, '.env') });
@@ -14,15 +13,12 @@ const app = express();
 app.set('trust proxy', 1);
 const PORT = process.env.PORT || 5000;
 
-// Service mappings from environment variables
 const AUTH_SERVICE_URL = process.env.AUTH_SERVICE_URL || 'http://localhost:5001';
 const USER_SERVICE_URL = process.env.USER_SERVICE_URL || 'http://localhost:5002';
 const CONTENT_SERVICE_URL = process.env.CONTENT_SERVICE_URL || 'http://localhost:5003';
 
-// Security Headers
 app.use(helmet());
 
-// CORS Setup (highly compatible with standard frontends)
 app.use(cors({
   origin: [process.env.CLIENT_URL, 'http://localhost:5173', 'http://localhost:5174'].filter(Boolean),
   credentials: true,
@@ -32,24 +28,20 @@ app.use(cors({
 
 app.use(cookieParser());
 
-// Request logging
 if (process.env.NODE_ENV !== 'production') {
   app.use(morgan('dev'));
 } else {
   app.use(morgan('combined'));
 }
-
-// Global Rate Limiter
 const globalLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 1000, // Limit each IP to 1000 requests per window
+  windowMs: 15 * 60 * 1000,
+  max: 1000,
   standardHeaders: true,
   legacyHeaders: false,
   message: { success: false, message: 'Too many requests from this IP, please try again later.' }
 });
 app.use('/api', globalLimiter);
 
-// Gateway Health Check
 app.get('/api/health', (req, res) => {
   res.json({
     status: 'OK',
@@ -63,14 +55,11 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-// Helper for proxy path matching
 const proxyOptions = (targetUrl) => ({
   proxyReqOptDecorator: (proxyReqOpts, srcReq) => {
-    // Preserve client headers (e.g. Auth Token, Content-Type)
     return proxyReqOpts;
   },
   userResHeaderDecorator: (headers, userReq, userRes, proxyReq, proxyRes) => {
-    // Preserve CORS headers if required
     return headers;
   },
   proxyErrorHandler: (err, res, next) => {
@@ -82,15 +71,10 @@ const proxyOptions = (targetUrl) => ({
   }
 });
 
-// Route mappings to microservices
-
-// 1. Auth Service Routes
 app.use('/api/auth', proxy(AUTH_SERVICE_URL, {
   proxyReqPathResolver: (req) => `/api/auth${req.url}`,
   ...proxyOptions(AUTH_SERVICE_URL)
 }));
-
-// 2. User Service Routes
 const userPaths = ['/users', '/leaderboard', '/badges', '/analytics', '/admin'];
 userPaths.forEach(path => {
   app.use(`/api${path}`, proxy(USER_SERVICE_URL, {
@@ -99,7 +83,6 @@ userPaths.forEach(path => {
   }));
 });
 
-// 3. Content & Gamification Service Routes
 const contentPaths = [
   '/content',
   '/quizzes',
@@ -124,7 +107,6 @@ contentPaths.forEach(path => {
   }));
 });
 
-// 404 handler
 app.use((req, res) => {
   res.status(404).json({ success: false, message: 'Route not found at Gateway' });
 });

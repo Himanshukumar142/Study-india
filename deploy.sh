@@ -1,13 +1,11 @@
 #!/bin/bash
 
-# Exit immediately if a command exits with a non-zero status
 set -e
 
 echo "======================================================"
 echo " 🚀 JEE/NEET Platform - Production Microservices Deployer "
 echo "======================================================"
 
-# Step 1: Pre-flight checks
 echo "🔍 Performing pre-flight checks..."
 if ! [ -x "$(command -v docker)" ]; then
   echo '❌ Error: docker is not installed. Please install Docker first.' >&2
@@ -19,13 +17,11 @@ if ! [ -x "$(command -v docker-compose)" ] && ! docker compose version &>/dev/nu
   exit 1
 fi
 
-# Detect docker compose command style
 COMPOSE_CMD="docker compose"
 if ! docker compose version &>/dev/null; then
   COMPOSE_CMD="docker-compose"
 fi
 
-# Step 2: Environment variables check
 if [ ! -f .env ]; then
   echo "⚠️  Warning: .env file not found. Copying from .env.example..."
   cp .env.example .env
@@ -33,7 +29,6 @@ if [ ! -f .env ]; then
   exit 1
 fi
 
-# Load environment variables
 source .env
 
 echo "📦 Pulling latest microservices containers..."
@@ -48,7 +43,6 @@ sleep 10
 echo "🔍 Validating microservice container health..."
 $COMPOSE_CMD ps
 
-# Step 3: Cleanup dangling resources to conserve disk space
 echo "🧹 Pruning old unused images and volumes..."
 docker image prune -f
 

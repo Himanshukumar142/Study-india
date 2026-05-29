@@ -1,7 +1,6 @@
 version: '3.8'
 
 services:
-  # 1. MongoDB Database Container (Optional local instance, bypassed if external Atlas URI is specified)
   mongodb:
     image: mongo:6.0-jammy
     container_name: jn-mongodb
@@ -18,7 +17,6 @@ services:
       timeout: 5s
       retries: 5
 
-  # 2. Authentication Microservice
   auth-service:
     build:
       context: ./services/auth-service
@@ -41,7 +39,6 @@ services:
       timeout: 5s
       retries: 3
 
-  # 3. User & Admin Microservice
   user-service:
     build:
       context: ./services/user-service
@@ -64,7 +61,6 @@ services:
       timeout: 5s
       retries: 3
 
-  # 4. Content, Gamification & AI Microservice
   content-service:
     build:
       context: ./services/content-service
@@ -87,7 +83,6 @@ services:
       timeout: 5s
       retries: 3
 
-  # 5. Centralized API Gateway
   api-gateway:
     build:
       context: ./services/api-gateway
@@ -118,7 +113,6 @@ services:
       timeout: 5s
       retries: 3
 
-  # 6. Edge Nginx Web Server & Frontend SPA
   frontend:
     build:
       context: ./frontend

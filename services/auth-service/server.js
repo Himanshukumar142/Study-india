@@ -1,4 +1,3 @@
-// JEE/NEET Platform - Auth Service
 const path = require('path');
 require('dotenv').config({ path: path.join(__dirname, '../../.env') });
 require('dotenv').config({ path: path.join(__dirname, '.env') });
@@ -13,7 +12,6 @@ const connectDB = require('./src/config/db');
 const errorHandler = require('./src/middleware/errorHandler.middleware');
 const { authLimiter } = require('./src/middleware/rateLimiter.middleware');
 
-// ── Register Mongoose Models (ensures populated refs work) ──
 require('./src/models/User.model');
 require('./src/models/Badge.model');
 require('./src/models/Bookmark.model');
@@ -38,10 +36,8 @@ const authRoutes = require('./src/routes/auth.routes');
 const app = express();
 app.set('trust proxy', 1);
 
-// Connect DB
 connectDB();
 
-// Security middleware
 app.use(helmet());
 app.use(cors({
   origin: [process.env.CLIENT_URL, 'http://localhost:5173', 'http://localhost:5174'].filter(Boolean),
@@ -49,30 +45,21 @@ app.use(cors({
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
 }));
 
-// Body parsing
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(cookieParser());
-
-// Logging
 if (process.env.NODE_ENV !== 'production') {
   app.use(morgan('dev'));
 }
 
-// Health check
 app.get('/api/auth/health', (req, res) => {
   res.json({ status: 'OK', service: 'auth-service', timestamp: new Date().toISOString() });
 });
-
-// Auth Routes (Port 5001)
 app.use('/api/auth', authRoutes);
 
-// 404 handler
 app.use((req, res) => {
   res.status(404).json({ success: false, message: 'Auth route not found' });
 });
-
-// Centralized error handler
 app.use(errorHandler);
 
 const PORT = process.env.AUTH_PORT || 5001;

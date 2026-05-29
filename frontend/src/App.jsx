@@ -57,11 +57,10 @@ export default function App() {
   return (
     <BrowserRouter>
       <Routes>
-        {/* Public */}
+
         <Route path="/login" element={user ? <Navigate to="/dashboard" /> : <LoginPage />} />
         <Route path="/signup" element={user ? <Navigate to="/dashboard" /> : <SignupPage />} />
 
-        {/* Protected with sidebar layout */}
         <Route path="/" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
           <Route index element={<Navigate to="/dashboard" />} />
           <Route path="dashboard" element={<DashboardPage />} />
@@ -92,7 +91,6 @@ export default function App() {
           <Route path="profile" element={<ProfilePage />} />
         </Route>
 
-        {/* Standalone Admin Panel (Has its own sidebar) */}
         <Route path="/admin" element={<ProtectedRoute adminOnly><AdminPanel /></ProtectedRoute>} />
 
         <Route path="*" element={<Navigate to="/dashboard" />} />

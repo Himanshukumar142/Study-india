@@ -12,13 +12,12 @@ export default function AIFloatingBot() {
   ]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
-  
+
   const location = useLocation();
   const chatEndRef = useRef(null);
   const dragRef = useRef(null);
   const offset = useRef({ x: 0, y: 0 });
 
-  // Detect attemptId from URL if on QuizResultPage
   const attemptId = location.pathname.includes('/quiz/result/') ? location.pathname.split('/').pop() : null;
 
   useEffect(() => {
@@ -36,10 +35,10 @@ export default function AIFloatingBot() {
   useEffect(() => {
     const handleMouseMove = (e) => {
       if (!isDragging) return;
-      
+
       const newX = Math.min(Math.max(0, e.clientX - offset.current.x), window.innerWidth - 60);
       const newY = Math.min(Math.max(0, e.clientY - offset.current.y), window.innerHeight - 60);
-      
+
       setPosition({ x: newX, y: newY });
     };
 
@@ -83,7 +82,6 @@ export default function AIFloatingBot() {
 
   return (
     <>
-      {/* Floating Button */}
       <div
         ref={dragRef}
         onMouseDown={handleMouseDown}
@@ -109,9 +107,9 @@ export default function AIFloatingBot() {
         <Bot color="white" size={30} />
         {/* Tooltip */}
         {!isOpen && (
-           <div style={{ position: 'absolute', right: 70, background: 'white', padding: '8px 12px', borderRadius: 8, boxShadow: '0 4px 12px rgba(0,0,0,0.1)', fontSize: 12, fontWeight: 600, whiteSpace: 'nowrap', pointerEvents: 'none', color: '#1e293b' }}>
-             Need help? Ask me!
-           </div>
+          <div style={{ position: 'absolute', right: 70, background: 'white', padding: '8px 12px', borderRadius: 8, boxShadow: '0 4px 12px rgba(0,0,0,0.1)', fontSize: 12, fontWeight: 600, whiteSpace: 'nowrap', pointerEvents: 'none', color: '#1e293b' }}>
+            Need help? Ask me!
+          </div>
         )}
       </div>
 
