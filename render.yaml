@@ -69,8 +69,8 @@ services:
       - key: CLIENT_URL
         sync: false
       - key: AUTH_SERVICE_URL
-        value: http://study-india-auth:5001
+        value: http://study-india-auth:10000
       - key: USER_SERVICE_URL
-        value: http://study-india-user:5002
+        value: http://study-india-user:10000
       - key: CONTENT_SERVICE_URL
-        value: http://study-india-content:5003
+        value: http://study-india-content:10000
