@@ -1,0 +1,71 @@
+services:
+  # 1. Auth Microservice
+  - type: web
+    name: study-india-auth
+    env: docker
+    plan: free
+    dockerContext: services/auth-service
+    dockerfilePath: Dockerfile
+    envVars:
+      - key: MONGO_URI
+        sync: false
+      - key: JWT_ACCESS_SECRET
+        sync: false
+      - key: JWT_REFRESH_SECRET
+        sync: false
+      - key: JWT_ACCESS_EXPIRES
+        value: 15m
+      - key: JWT_REFRESH_EXPIRES
+        value: 7d
+
+  # 2. User Microservice
+  - type: web
+    name: study-india-user
+    env: docker
+    plan: free
+    dockerContext: services/user-service
+    dockerfilePath: Dockerfile
+    envVars:
+      - key: MONGO_URI
+        sync: false
+      - key: JWT_ACCESS_SECRET
+        sync: false
+      - key: JWT_REFRESH_SECRET
+        sync: false
+
+  # 3. Content & Quiz Microservice
+  - type: web
+    name: study-india-content
+    env: docker
+    plan: free
+    dockerContext: services/content-service
+    dockerfilePath: Dockerfile
+    envVars:
+      - key: MONGO_URI
+        sync: false
+      - key: JWT_ACCESS_SECRET
+        sync: false
+      - key: JWT_REFRESH_SECRET
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+
+  # 4. API Gateway (Entrypoint)
+  - type: web
+    name: study-india-gateway
+    env: docker
+    plan: free
+    dockerContext: services/api-gateway
+    dockerfilePath: Dockerfile
+    ports:
+      - port: 5000
+        protocol: TCP
+    envVars:
+      - key: PORT
+        value: 5000
+      - key: AUTH_SERVICE_URL
+        value: http://study-india-auth:5001
+      - key: USER_SERVICE_URL
+        value: http://study-india-user:5002
+      - key: CONTENT_SERVICE_URL
+        value: http://study-india-content:5003
