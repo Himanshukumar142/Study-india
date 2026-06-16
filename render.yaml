@@ -57,9 +57,6 @@ services:
     plan: free
     dockerContext: services/api-gateway
     dockerfilePath: services/api-gateway/Dockerfile
-    ports:
-      - port: 5000
-        protocol: TCP
     envVars:
       - key: PORT
         value: 5000
