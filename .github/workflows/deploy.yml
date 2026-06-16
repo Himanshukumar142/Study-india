@@ -9,7 +9,6 @@ on:
       - main
 
 jobs:
-  # ── Phase 1: Quality Assurance & Code Validation ──
   validate:
     name: Code Quality Checks
     runs-on: ubuntu-latest
@@ -38,7 +37,6 @@ jobs:
         run: |
           npm run lint --prefix frontend || echo "No explicit linter errors found, proceeding."
 
-  # ── Phase 2: Secure Docker Build & Registry Release ──
   build-and-push:
     name: Containerize and Release
     needs: validate
@@ -57,7 +55,6 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      # 1. API Gateway Service Build & Push
       - name: Build & Push API Gateway
         uses: docker/build-push-action@v5
         with:
@@ -68,7 +65,6 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      # 2. Auth Service Build & Push
       - name: Build & Push Auth Service
         uses: docker/build-push-action@v5
         with:
@@ -79,7 +75,6 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      # 3. User & Admin Service Build & Push
       - name: Build & Push User Service
         uses: docker/build-push-action@v5
         with:
@@ -90,7 +85,6 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      # 4. Content Microservice Build & Push
       - name: Build & Push Content Service
         uses: docker/build-push-action@v5
         with:
@@ -101,7 +95,6 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      # 5. Frontend SPA & Edge Nginx Web Server Build & Push
       - name: Build & Push Frontend (Nginx Edge)
         uses: docker/build-push-action@v5
         with:
@@ -112,7 +105,6 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-  # ── Phase 3: VPS / Orchestrator Trigger Preparation ──
   prepare-deploy:
     name: Deployment Artifact Preparation
     needs: build-and-push

@@ -1,31 +1,61 @@
 import { useState, useEffect } from 'react'
-import { Trophy, Lock, Star, Zap, CheckCircle2, Loader2, RefreshCw } from 'lucide-react'
+import { Trophy, RefreshCw, Zap, CheckCircle2, Loader2, Star, Lock } from 'lucide-react'
 import api from '../services/api'
 import toast from 'react-hot-toast'
 
-const RARITY_CONFIG = {
-  common:    { label: 'Common',    bg: 'bg-slate-100',   border: 'border-slate-200', text: 'text-slate-500',   glow: '',                         badge: 'bg-slate-200 text-slate-600'   },
-  rare:      { label: 'Rare',      bg: 'bg-blue-50',     border: 'border-blue-200',  text: 'text-blue-600',    glow: 'shadow-blue-200',          badge: 'bg-blue-100 text-blue-700'     },
-  epic:      { label: 'Epic',      bg: 'bg-purple-50',   border: 'border-purple-300',text: 'text-purple-600',  glow: 'shadow-purple-200',        badge: 'bg-purple-100 text-purple-700' },
-  legendary: { label: 'Legendary', bg: 'bg-amber-50',    border: 'border-amber-300', text: 'text-amber-600',   glow: 'shadow-amber-200',         badge: 'bg-amber-100 text-amber-700'   },
+const RARITY = {
+  common:    { label:'Common',    color:'#64748b', bg:'#f8fafc', border:'#e2e8f0', glow:'none' },
+  rare:      { label:'Rare',      color:'#3b82f6', bg:'#eff6ff', border:'#bfdbfe', glow:'0 0 20px rgba(59,130,246,.25)' },
+  epic:      { label:'Epic',      color:'#8b5cf6', bg:'#f5f3ff', border:'#c4b5fd', glow:'0 0 20px rgba(139,92,246,.3)' },
+  legendary: { label:'Legendary', color:'#f59e0b', bg:'#fffbeb', border:'#fcd34d', glow:'0 0 24px rgba(245,158,11,.4)' },
 }
 
-const CATEGORY_LABELS = {
-  streak:    { label: '🔥 Streaks',   color: 'from-orange-500 to-red-500'     },
-  quiz:      { label: '📝 Quizzes',   color: 'from-blue-500 to-cyan-500'      },
-  score:     { label: '⭐ Scores',    color: 'from-yellow-500 to-amber-500'   },
-  questions: { label: '🧠 Questions', color: 'from-indigo-500 to-violet-500'  },
-  subject:   { label: '📚 Subjects',  color: 'from-emerald-500 to-teal-500'  },
-  xp:        { label: '⚡ XP',        color: 'from-pink-500 to-rose-500'      },
-  special:   { label: '✨ Special',   color: 'from-purple-500 to-pink-500'    },
+const CATEGORIES = {
+  streak:    { label:'🔥 Streaks',   grad:'linear-gradient(135deg,#f97316,#ef4444)' },
+  quiz:      { label:'📝 Quizzes',   grad:'linear-gradient(135deg,#3b82f6,#06b6d4)' },
+  score:     { label:'⭐ Scores',    grad:'linear-gradient(135deg,#eab308,#f59e0b)' },
+  questions: { label:'🧠 Questions', grad:'linear-gradient(135deg,#6366f1,#8b5cf6)' },
+  subject:   { label:'📚 Subjects',  grad:'linear-gradient(135deg,#10b981,#14b8a6)' },
+  xp:        { label:'⚡ XP',        grad:'linear-gradient(135deg,#ec4899,#f43f5e)' },
+  special:   { label:'✨ Special',   grad:'linear-gradient(135deg,#a855f7,#ec4899)' },
 }
+
+const css = `
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+  .bg-root * { box-sizing:border-box; font-family:'Inter',system-ui,sans-serif; }
+  @keyframes fadeUp    { from{opacity:0;transform:translateY(14px)} to{opacity:1;transform:translateY(0)} }
+  @keyframes shimmer   { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
+  @keyframes legendPulse { 0%,100%{box-shadow:0 0 24px rgba(245,158,11,.4)} 50%{box-shadow:0 0 36px rgba(245,158,11,.7)} }
+  @keyframes spin      { to{transform:rotate(360deg)} }
+  .bg-fade-up { animation:fadeUp .35s ease both; }
+  .bg-spin    { animation:spin .8s linear infinite; }
+
+  .bg-filter-btn { padding:9px 18px; border-radius:10px; font-size:12px; font-weight:700; cursor:pointer; border:none; transition:all .2s ease; font-family:'Inter',sans-serif; }
+  .bg-filter-btn.active   { background:#b45309; color:white; }
+  .bg-filter-btn.inactive { background:transparent; color:#64748b; }
+  .bg-filter-btn.inactive:hover { color:#1e293b; background:rgba(180,83,9,.08); }
+
+  .bg-badge-card {
+    border-radius:20px; border:2px solid; padding:20px 16px; text-align:center;
+    transition:all .2s ease; position:relative; overflow:hidden; cursor:default;
+  }
+  .bg-badge-card.unlocked:hover { transform:translateY(-4px) scale(1.02); }
+  .bg-badge-card.locked { opacity:.45; filter:grayscale(.6); }
+  .bg-badge-card.legendary { animation:legendPulse 3s ease infinite; }
+
+  .bg-shimmer {
+    border-radius:20px; height:140px;
+    background:linear-gradient(90deg,#f1f5f9 25%,#e8eef8 50%,#f1f5f9 75%);
+    background-size:200% 100%; animation:shimmer 1.5s infinite;
+  }
+`
 
 export default function BadgesPage() {
-  const [badges, setBadges] = useState([])
-  const [stats, setStats] = useState({ total: 0, owned: 0, pct: 0 })
-  const [loading, setLoading] = useState(true)
+  const [badges,   setBadges]   = useState([])
+  const [stats,    setStats]    = useState({ total:0, owned:0, pct:0 })
+  const [loading,  setLoading]  = useState(true)
   const [checking, setChecking] = useState(false)
-  const [filter, setFilter] = useState('all')  // all | owned | locked
+  const [filter,   setFilter]   = useState('all')
   const [category, setCategory] = useState('all')
 
   useEffect(() => { fetchBadges() }, [])
@@ -34,8 +64,7 @@ export default function BadgesPage() {
     setLoading(true)
     try {
       const { data } = await api.get('/badges')
-      setBadges(data.data || [])
-      setStats(data.stats || { total: 0, owned: 0, pct: 0 })
+      setBadges(data.data || []); setStats(data.stats || { total:0, owned:0, pct:0 })
     } catch { toast.error('Failed to load badges') }
     finally { setLoading(false) }
   }
@@ -44,92 +73,98 @@ export default function BadgesPage() {
     setChecking(true)
     try {
       const { data } = await api.post('/badges/check')
-      if (data.newBadges?.length > 0) {
-        toast.success(`🎉 ${data.newBadges.length} new badge${data.newBadges.length > 1 ? 's' : ''} unlocked!`)
-        fetchBadges()
-      } else {
-        toast('No new badges yet. Keep studying!', { icon: '💪' })
-      }
+      if (data.newBadges?.length > 0) { toast.success(`🎉 ${data.newBadges.length} new badge${data.newBadges.length>1?'s':''} unlocked!`); fetchBadges() }
+      else toast('No new badges yet. Keep studying! 💪')
     } catch { toast.error('Failed') }
     finally { setChecking(false) }
   }
 
   const filtered = badges.filter(b => {
-    if (filter === 'owned' && !b.owned) return false
-    if (filter === 'locked' && b.owned) return false
-    if (category !== 'all' && b.category !== category) return false
+    if (filter==='owned' && !b.owned) return false
+    if (filter==='locked' && b.owned) return false
+    if (category!=='all' && b.category!==category) return false
     return true
   })
 
-  const grouped = Object.entries(CATEGORY_LABELS).reduce((acc, [cat]) => {
-    const catBadges = filtered.filter(b => b.category === cat)
-    if (catBadges.length > 0) acc[cat] = catBadges
-    return acc
+  const grouped = Object.entries(CATEGORIES).reduce((acc,[cat]) => {
+    const cb = filtered.filter(b=>b.category===cat)
+    if (cb.length>0) acc[cat]=cb; return acc
   }, {})
 
-  const owned = badges.filter(b => b.owned)
-  const recent = [...owned].sort((a, b) => new Date(b.earnedAt) - new Date(a.earnedAt)).slice(0, 3)
-
-  if (loading) return (
-    <div className="min-h-full flex items-center justify-center bg-[#f8fafc]">
-      <Loader2 size={32} className="animate-spin text-amber-500" />
-    </div>
-  )
+  const owned = badges.filter(b=>b.owned)
+  const recent = [...owned].sort((a,b)=>new Date(b.earnedAt)-new Date(a.earnedAt)).slice(0,3)
 
   return (
-    <div className="min-h-full bg-[#f8fafc]">
-      <div className="max-w-5xl mx-auto px-5 py-8 space-y-6">
+    <div className="bg-root" style={{ minHeight:'100%', background:'linear-gradient(135deg,#f8f9fc 0%,#fff7ed 50%,#f8f9fc 100%)', fontFamily:"'Inter',system-ui" }}>
+      <style>{css}</style>
+      <div style={{ maxWidth:1000, margin:'0 auto', padding:'32px 20px', display:'flex', flexDirection:'column', gap:20 }}>
 
         {/* Hero */}
-        <div className="bg-gradient-to-br from-amber-500 via-yellow-500 to-orange-500 rounded-3xl p-8 text-white shadow-2xl shadow-amber-500/25 relative overflow-hidden">
-          <div className="absolute -right-10 -top-10 w-40 h-40 bg-white/5 rounded-full" />
-          <div className="absolute right-16 bottom-4 w-20 h-20 bg-white/5 rounded-full" />
-          <div className="flex items-center gap-2 mb-3">
-            <Trophy size={18} className="text-yellow-200" />
-            <span className="text-yellow-100 text-xs font-bold uppercase tracking-widest">Achievements</span>
-          </div>
-          <h1 className="text-3xl font-black mb-2">Your Badges</h1>
-          <p className="text-yellow-100 text-sm mb-5">Unlock badges by studying, completing quizzes, and hitting milestones.</p>
+        <div className="bg-fade-up" style={{
+          background:'linear-gradient(135deg,#78350f 0%,#b45309 40%,#d97706 100%)',
+          borderRadius:28, padding:'44px 48px', color:'white', position:'relative', overflow:'hidden',
+          boxShadow:'0 20px 60px rgba(180,83,9,.35)'
+        }}>
+          <div style={{ position:'absolute', top:-50, right:-50, width:220, height:220, borderRadius:'50%', background:'rgba(255,255,255,.07)', filter:'blur(40px)', pointerEvents:'none' }} />
+          <div style={{ position:'absolute', bottom:-30, left:'25%', width:160, height:160, borderRadius:'50%', background:'rgba(245,158,11,.15)', filter:'blur(30px)', pointerEvents:'none' }} />
 
-          {/* Stats row */}
-          <div className="grid grid-cols-3 gap-4 mb-5">
-            {[
-              { l: 'Unlocked', v: stats.owned },
-              { l: 'Total', v: stats.total },
-              { l: 'Progress', v: `${stats.pct}%` },
-            ].map(s => (
-              <div key={s.l} className="bg-white/15 rounded-2xl p-4 text-center backdrop-blur-sm">
-                <p className="text-2xl font-black">{s.v}</p>
-                <p className="text-[10px] font-bold text-white/60">{s.l}</p>
+          <div style={{ position:'relative', zIndex:1 }}>
+            <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', flexWrap:'wrap', gap:16, marginBottom:24 }}>
+              <div>
+                <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:12 }}>
+                  <div style={{ width:36, height:36, borderRadius:10, background:'rgba(255,255,255,.15)', display:'flex', alignItems:'center', justifyContent:'center' }}>
+                    <Trophy size={18} style={{color:'#fde68a'}} />
+                  </div>
+                  <span style={{ fontSize:11, fontWeight:800, color:'rgba(255,255,255,.55)', letterSpacing:'.1em', textTransform:'uppercase' }}>Achievements</span>
+                </div>
+                <h1 style={{ fontSize:'clamp(24px,4vw,40px)', fontWeight:900, margin:'0 0 6px' }}>Your Badges</h1>
+                <p style={{ fontSize:13, color:'rgba(255,255,255,.65)', margin:0 }}>Unlock by studying, completing quizzes, and hitting milestones</p>
               </div>
-            ))}
-          </div>
+              <button onClick={checkBadges} disabled={checking} style={{
+                padding:'12px 22px', borderRadius:14, border:'none', background:'rgba(255,255,255,.2)', backdropFilter:'blur(8px)',
+                color:'white', fontWeight:800, fontSize:13, cursor:checking?'wait':'pointer',
+                display:'flex', alignItems:'center', gap:8, fontFamily:'inherit', border:'1px solid rgba(255,255,255,.3)'
+              }}>
+                {checking ? <span className="bg-spin" style={{ width:14,height:14,border:'2px solid rgba(255,255,255,.4)',borderTopColor:'white',borderRadius:'50%',display:'inline-block' }}/> : <RefreshCw size={14}/>}
+                {checking?'Checking…':'Check for Badges'}
+              </button>
+            </div>
 
-          {/* Progress bar */}
-          <div className="h-3 bg-white/20 rounded-full overflow-hidden mb-4">
-            <div className="h-full bg-white rounded-full transition-all duration-700" style={{ width: `${stats.pct}%` }} />
-          </div>
+            {/* Stats tiles */}
+            <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:12, marginBottom:20 }}>
+              {[
+                { label:'Unlocked', val:stats.owned },
+                { label:'Total',    val:stats.total },
+                { label:'Progress', val:`${stats.pct}%` },
+              ].map(s => (
+                <div key={s.label} style={{ background:'rgba(255,255,255,.12)', backdropFilter:'blur(8px)', borderRadius:16, padding:'14px 18px', border:'1px solid rgba(255,255,255,.1)', textAlign:'center' }}>
+                  <div style={{ fontSize:26, fontWeight:900 }}>{s.val}</div>
+                  <div style={{ fontSize:10, fontWeight:700, color:'rgba(255,255,255,.6)', marginTop:3, textTransform:'uppercase', letterSpacing:'.05em' }}>{s.label}</div>
+                </div>
+              ))}
+            </div>
 
-          <button onClick={checkBadges} disabled={checking}
-            className="px-5 py-2.5 bg-white text-amber-600 rounded-xl font-black text-sm hover:bg-amber-50 transition-all flex items-center gap-2 disabled:opacity-60">
-            {checking ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
-            {checking ? 'Checking…' : 'Check for New Badges'}
-          </button>
+            {/* Progress bar */}
+            <div style={{ height:8, background:'rgba(255,255,255,.2)', borderRadius:999, overflow:'hidden' }}>
+              <div style={{ height:'100%', background:'white', borderRadius:999, width:`${stats.pct}%`, transition:'width .7s ease' }} />
+            </div>
+          </div>
         </div>
 
-        {/* Recently Earned */}
+        {/* Recently earned */}
         {recent.length > 0 && (
-          <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
-            <h3 className="font-black text-slate-900 text-sm mb-4 flex items-center gap-2">
-              <Zap size={14} className="text-amber-500" /> Recently Earned
-            </h3>
-            <div className="flex gap-4">
+          <div style={{ background:'white', borderRadius:20, border:'1px solid rgba(226,232,240,.8)', boxShadow:'0 4px 20px rgba(0,0,0,.05)', padding:24 }}>
+            <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:16 }}>
+              <Zap size={16} style={{color:'#f59e0b'}} />
+              <span style={{ fontSize:14, fontWeight:800, color:'#1e293b' }}>Recently Earned</span>
+            </div>
+            <div style={{ display:'flex', gap:12, flexWrap:'wrap' }}>
               {recent.map(b => (
-                <div key={b.id} className="flex items-center gap-3 flex-1 p-3 bg-amber-50 border border-amber-100 rounded-2xl">
-                  <div className="text-3xl">{b.icon}</div>
+                <div key={b.id} style={{ display:'flex', alignItems:'center', gap:12, flex:1, minWidth:180, padding:'14px 18px', borderRadius:14, background:'linear-gradient(135deg,#fffbeb,#fef3c7)', border:'1px solid #fcd34d' }}>
+                  <div style={{ fontSize:28 }}>{b.icon}</div>
                   <div>
-                    <p className="text-sm font-black text-slate-900">{b.name}</p>
-                    <p className="text-[10px] text-amber-600 font-bold">{new Date(b.earnedAt).toLocaleDateString('en-IN')}</p>
+                    <div style={{ fontSize:13, fontWeight:800, color:'#1e293b' }}>{b.name}</div>
+                    <div style={{ fontSize:10, color:'#d97706', fontWeight:700 }}>{new Date(b.earnedAt).toLocaleDateString('en-IN')}</div>
                   </div>
                 </div>
               ))}
@@ -138,104 +173,56 @@ export default function BadgesPage() {
         )}
 
         {/* Filters */}
-        <div className="flex flex-wrap gap-2">
-          <div className="flex gap-1 bg-white border border-slate-200 rounded-xl p-1">
-            {[
-              { v: 'all', l: 'All' },
-              { v: 'owned', l: `✅ Unlocked (${stats.owned})` },
-              { v: 'locked', l: `🔒 Locked (${stats.total - stats.owned})` },
-            ].map(f => (
-              <button key={f.v} onClick={() => setFilter(f.v)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${filter === f.v ? 'bg-amber-500 text-white' : 'text-slate-400 hover:text-slate-700'}`}>
-                {f.l}
-              </button>
+        <div style={{ display:'flex', gap:12, flexWrap:'wrap' }}>
+          <div style={{ background:'rgba(255,255,255,.8)', borderRadius:14, padding:6, display:'flex', gap:4, border:'1px solid rgba(226,232,240,.6)' }}>
+            {[{v:'all',l:'All'},{v:'owned',l:`✅ Unlocked (${stats.owned})`},{v:'locked',l:`🔒 Locked (${stats.total-stats.owned})`}].map(f => (
+              <button key={f.v} className={`bg-filter-btn${filter===f.v?' active':' inactive'}`} onClick={()=>setFilter(f.v)}>{f.l}</button>
             ))}
           </div>
-          <div className="flex gap-1 bg-white border border-slate-200 rounded-xl p-1 flex-wrap">
-            <button onClick={() => setCategory('all')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${category === 'all' ? 'bg-slate-700 text-white' : 'text-slate-400 hover:text-slate-700'}`}>
-              All
-            </button>
-            {Object.entries(CATEGORY_LABELS).map(([cat, cfg]) => (
-              <button key={cat} onClick={() => setCategory(cat)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${category === cat ? 'bg-slate-700 text-white' : 'text-slate-400 hover:text-slate-700'}`}>
-                {cfg.label}
-              </button>
+          <div style={{ background:'rgba(255,255,255,.8)', borderRadius:14, padding:6, display:'flex', gap:4, border:'1px solid rgba(226,232,240,.6)', flexWrap:'wrap' }}>
+            <button className={`bg-filter-btn${category==='all'?' active':' inactive'}`} onClick={()=>setCategory('all')}>All</button>
+            {Object.entries(CATEGORIES).map(([cat,cfg]) => (
+              <button key={cat} className={`bg-filter-btn${category===cat?' active':' inactive'}`} onClick={()=>setCategory(cat)}>{cfg.label}</button>
             ))}
           </div>
         </div>
 
         {/* Badge groups */}
-        {Object.entries(grouped).length === 0 ? (
-          <div className="bg-white rounded-2xl border border-slate-100 p-12 text-center">
-            <Trophy size={36} className="text-slate-300 mx-auto mb-3" />
-            <p className="font-black text-slate-900">No badges to show</p>
+        {loading ? (
+          <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(150px,1fr))', gap:12 }}>
+            {[0,1,2,3,4,5,6,7].map(i=><div key={i} className="bg-shimmer" style={{ animationDelay:`${i*.08}s` }}/>)}
+          </div>
+        ) : Object.keys(grouped).length === 0 ? (
+          <div style={{ background:'white', borderRadius:20, border:'1px solid #f1f5f9', padding:60, textAlign:'center' }}>
+            <Trophy size={36} style={{ color:'#e2e8f0', margin:'0 auto 16px', display:'block' }} />
+            <div style={{ fontSize:16, fontWeight:700, color:'#94a3b8' }}>No badges match your filter</div>
           </div>
         ) : (
-          <div className="space-y-6">
+          <div style={{ display:'flex', flexDirection:'column', gap:24 }}>
             {Object.entries(grouped).map(([cat, catBadges]) => {
-              const catCfg = CATEGORY_LABELS[cat]
+              const cfg = CATEGORIES[cat]
               return (
                 <div key={cat}>
-                  <div className={`inline-flex items-center gap-2 px-4 py-1.5 rounded-xl bg-gradient-to-r ${catCfg.color} text-white text-xs font-black mb-4`}>
-                    {catCfg.label}
-                  </div>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+                  <div style={{ display:'inline-flex', alignItems:'center', gap:6, padding:'6px 16px', borderRadius:20, background:cfg.grad, color:'white', fontSize:12, fontWeight:800, marginBottom:14 }}>{cfg.label}</div>
+                  <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(148px,1fr))', gap:12 }}>
                     {catBadges.map(b => {
-                      const rc = RARITY_CONFIG[b.rarity] || RARITY_CONFIG.common
+                      const rc = RARITY[b.rarity] || RARITY.common
                       return (
-                        <div key={b.id}
-                          className={`relative rounded-2xl border-2 p-4 text-center transition-all duration-200 group
-                            ${b.owned
-                              ? `${rc.bg} ${rc.border} shadow-lg ${rc.glow} hover:scale-105`
-                              : 'bg-slate-50 border-slate-200 opacity-50 hover:opacity-70'
-                            }`}>
+                        <div key={b.id} className={`bg-badge-card${b.owned?' unlocked':'locked'}${b.owned&&b.rarity==='legendary'?' legendary':''}`}
+                          style={{ background:b.owned?rc.bg:'#f8fafc', borderColor:b.owned?rc.border:'#e2e8f0', boxShadow:b.owned?rc.glow:'none' }}>
 
-                          {/* Rarity glow for legendary */}
-                          {b.owned && b.rarity === 'legendary' && (
-                            <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-amber-400/20 to-orange-400/20 animate-pulse" />
-                          )}
+                          {b.owned && <div style={{ position:'absolute', top:10, right:10 }}>
+                            <CheckCircle2 size={13} style={{ color:rc.color }} />
+                          </div>}
 
-                          {/* Icon */}
-                          <div className={`text-4xl mb-2 relative ${!b.owned ? 'grayscale' : ''}`}>
-                            {b.owned ? b.icon : '🔒'}
-                          </div>
+                          <div style={{ fontSize:36, marginBottom:10, filter:b.owned?'none':'grayscale(1)' }}>{b.owned?b.icon:'🔒'}</div>
+                          <div style={{ fontSize:12, fontWeight:800, color:b.owned?'#1e293b':'#94a3b8', marginBottom:5, lineHeight:1.4 }}>{b.name}</div>
+                          <div style={{ fontSize:10, color:b.owned?'#64748b':'#cbd5e1', lineHeight:1.5, marginBottom:8 }}>{b.desc}</div>
 
-                          {/* Name */}
-                          <p className={`text-xs font-black mb-1 ${b.owned ? 'text-slate-900' : 'text-slate-400'}`}>
-                            {b.name}
-                          </p>
+                          <span style={{ display:'inline-block', padding:'3px 10px', borderRadius:20, background:b.owned?rc.bg:'#f1f5f9', color:b.owned?rc.color:'#94a3b8', border:`1px solid ${b.owned?rc.border:'#e2e8f0'}`, fontSize:9, fontWeight:800, letterSpacing:'.04em', textTransform:'uppercase' }}>{rc.label}</span>
 
-                          {/* Desc */}
-                          <p className={`text-[9px] leading-snug mb-2 ${b.owned ? 'text-slate-500' : 'text-slate-300'}`}>
-                            {b.desc}
-                          </p>
-
-                          {/* Rarity badge */}
-                          <span className={`px-2 py-0.5 text-[8px] font-black rounded-full ${rc.badge}`}>
-                            {rc.label}
-                          </span>
-
-                          {/* XP */}
-                          {b.xp > 0 && (
-                            <div className={`mt-1 text-[8px] font-bold ${b.owned ? rc.text : 'text-slate-300'}`}>
-                              +{b.xp} XP
-                            </div>
-                          )}
-
-                          {/* Owned tick */}
-                          {b.owned && (
-                            <div className="absolute top-2 right-2">
-                              <CheckCircle2 size={12} className={rc.text} />
-                            </div>
-                          )}
-
-                          {/* Earned date tooltip */}
-                          {b.owned && b.earnedAt && (
-                            <p className="text-[8px] text-slate-400 mt-1">
-                              {new Date(b.earnedAt).toLocaleDateString('en-IN')}
-                            </p>
-                          )}
+                          {b.xp > 0 && <div style={{ fontSize:9, fontWeight:800, color:b.owned?rc.color:'#cbd5e1', marginTop:4 }}>+{b.xp} XP</div>}
+                          {b.owned && b.earnedAt && <div style={{ fontSize:8, color:'#94a3b8', marginTop:4 }}>{new Date(b.earnedAt).toLocaleDateString('en-IN')}</div>}
                         </div>
                       )
                     })}

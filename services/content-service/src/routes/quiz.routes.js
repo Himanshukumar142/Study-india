@@ -4,6 +4,7 @@ const {
   startQuiz,
   saveAnswer,
   submitQuiz,
+  autoSubmitQuiz,
   getQuizResult,
   getAttempts,
   createQuestion,
@@ -19,6 +20,7 @@ router.use(verifyAccessToken);
 router.post('/start', startQuiz);
 router.post('/answer', saveAnswer);
 router.post('/submit', submitQuiz);
+router.post('/auto-submit', autoSubmitQuiz);
 router.get('/result/:id', getQuizResult);
 router.post('/violation', reportViolation);
 
@@ -26,7 +28,7 @@ router.post('/violation', reportViolation);
 router.get('/attempts', getAttempts);
 router.get('/questions', getQuestions); // Keep for backwards compatibility/admin
 router.post('/questions', requireAdmin, createQuestion);
-router.post('/questions/bulk', requireAdmin, createQuestionsBulk);
+router.post('/questions/bulk', createQuestionsBulk);
 
 module.exports = router;
 

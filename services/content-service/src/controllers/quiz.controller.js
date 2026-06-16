@@ -2,6 +2,7 @@ const Question = require('../models/Question.model');
 const QuizAttempt = require('../models/QuizAttempt.model');
 const Mistake = require('../models/Mistake.model');
 const User = require('../models/User.model');
+const ViolationLog = require('../models/ViolationLog.model');
 const { calculateXP, getLevelFromXP } = require('../utils/xpEngine');
 
 // Keep for backwards compatibility / admin use
@@ -22,36 +23,42 @@ const getQuestions = async (req, res) => {
 
 // POST /api/quizzes/start
 const startQuiz = async (req, res) => {
-  const { subject, chapter, mode = 'practice', limit = 10 } = req.body;
+  const { subject, chapter, mode = 'practice', limit = 10, questionIds } = req.body;
   
-  if (!subject || !chapter) {
-    return res.status(422).json({ success: false, message: 'Subject and chapter are required' });
+  let questions;
+  if (questionIds && Array.isArray(questionIds) && questionIds.length > 0) {
+    const qList = await Question.find({ _id: { $in: questionIds } });
+    questions = qList.map(q => q.toObject());
+  } else {
+    if (!subject || !chapter) {
+      return res.status(422).json({ success: false, message: 'Subject and chapter are required' });
+    }
+
+    const filter = {
+      subject: new RegExp(subject, 'i'),
+      chapter: new RegExp(chapter, 'i')
+    };
+
+    // Fetch random questions
+    questions = await Question.aggregate([
+      { $match: filter },
+      { $sample: { size: parseInt(limit) } }
+    ]);
   }
-
-  const filter = {
-    subject: new RegExp(subject, 'i'),
-    chapter: new RegExp(chapter, 'i')
-  };
-
-  // Fetch random questions
-  const questions = await Question.aggregate([
-    { $match: filter },
-    { $sample: { size: parseInt(limit) } }
-  ]);
 
   if (questions.length === 0) {
     return res.status(404).json({ success: false, message: 'No questions found for the given criteria' });
   }
 
-  const questionIds = questions.map(q => q._id);
+  const actualQuestionIds = questions.map(q => q._id);
   
   // Create an in-progress attempt
   const attempt = await QuizAttempt.create({
     userId: req.user._id,
-    subject,
-    chapter,
-    questions: questionIds,
-    answers: questionIds.map(qid => ({ questionId: qid })),
+    subject: subject || (questions[0] && questions[0].subject) || 'AI PDF Quiz',
+    chapter: chapter || (questions[0] && questions[0].chapter) || 'Multiple',
+    questions: actualQuestionIds,
+    answers: actualQuestionIds.map(qid => ({ questionId: qid })),
     mode,
     status: 'in-progress',
     startTime: new Date()
@@ -59,9 +66,10 @@ const startQuiz = async (req, res) => {
 
   // Strip correct answers and explanations before sending to client
   const safeQuestions = questions.map(q => {
-    delete q.correct;
-    delete q.explanation;
-    return q;
+    const cleanQ = { ...q };
+    delete cleanQ.correct;
+    delete cleanQ.explanation;
+    return cleanQ;
   });
 
   res.status(201).json({
@@ -69,7 +77,8 @@ const startQuiz = async (req, res) => {
     data: {
       attemptId: attempt._id,
       questions: safeQuestions,
-      startTime: attempt.startTime
+      startTime: attempt.startTime,
+      answers: attempt.answers
     }
   });
 };
@@ -117,7 +126,18 @@ const submitQuiz = async (req, res) => {
 
   const attempt = await QuizAttempt.findOne({ _id: attemptId, userId: req.user._id });
   if (!attempt) return res.status(404).json({ success: false, message: 'Attempt not found' });
-  if (attempt.status === 'completed') return res.status(400).json({ success: false, message: 'Already submitted' });
+  if (attempt.status === 'completed') {
+    return res.json({
+      success: true,
+      message: 'Quiz already submitted',
+      data: {
+        attemptId: attempt._id,
+        score: attempt.obtainedMarks,
+        accuracy: attempt.accuracy,
+        xpGained: attempt.xpAwarded
+      }
+    });
+  }
 
   attempt.endTime = new Date();
   attempt.timeTakenSeconds = Math.round((attempt.endTime - attempt.startTime) / 1000);
@@ -249,7 +269,7 @@ const getQuizResult = async (req, res) => {
 
 // POST /api/quizzes/violation
 const reportViolation = async (req, res) => {
-  const { attemptId } = req.body;
+  const { attemptId, violationType, details } = req.body;
   const attempt = await QuizAttempt.findOne({ _id: attemptId, userId: req.user._id });
   
   if (!attempt || attempt.status === 'completed') {
@@ -258,6 +278,15 @@ const reportViolation = async (req, res) => {
 
   attempt.violations += 1;
   await attempt.save();
+
+  // Log audit trail
+  await ViolationLog.create({
+    userId: req.user._id,
+    attemptId,
+    violationType: violationType || 'other',
+    details: details || 'Manual violation log',
+    timestamp: new Date()
+  });
 
   res.json({ success: true, violations: attempt.violations });
 };
@@ -305,11 +334,147 @@ const createQuestionsBulk = async (req, res) => {
   }
 };
 
+// POST /api/quizzes/auto-submit
+const autoSubmitQuiz = async (req, res) => {
+  const { attemptId, answers, violationType, details } = req.body;
+
+  if (!attemptId) {
+    return res.status(422).json({ success: false, message: 'attemptId is required' });
+  }
+
+  const attempt = await QuizAttempt.findOne({ _id: attemptId, userId: req.user._id });
+  if (!attempt) return res.status(404).json({ success: false, message: 'Attempt not found' });
+  
+  if (attempt.status === 'completed') {
+    return res.json({
+      success: true,
+      message: 'Quiz already submitted',
+      data: {
+        attemptId: attempt._id,
+        score: attempt.obtainedMarks,
+        accuracy: attempt.accuracy,
+        xpGained: attempt.xpAwarded
+      }
+    });
+  }
+
+  // 1. Log violation if provided
+  if (violationType) {
+    attempt.violations += 1;
+    await ViolationLog.create({
+      userId: req.user._id,
+      attemptId,
+      violationType,
+      details: details || 'Auto-submit trigger',
+      timestamp: new Date()
+    });
+  }
+
+  // 2. If client passed final answers to be synchronized, save them first
+  if (Array.isArray(answers) && answers.length > 0) {
+    for (const ans of answers) {
+      const idx = attempt.answers.findIndex(a => a.questionId.toString() === ans.questionId);
+      if (idx > -1) {
+        attempt.answers[idx].selectedOption = ans.selectedOption;
+        if (ans.timeTakenSeconds) attempt.answers[idx].timeTakenSeconds += ans.timeTakenSeconds;
+      }
+    }
+  }
+
+  attempt.endTime = new Date();
+  attempt.timeTakenSeconds = Math.round((attempt.endTime - attempt.startTime) / 1000);
+
+  const questions = await Question.find({ _id: { $in: attempt.questions } });
+  const qMap = {};
+  questions.forEach(q => { qMap[q._id.toString()] = q; });
+
+  let totalMarks = 0;
+  let obtainedMarks = 0;
+  let correctCount = 0;
+  let wrongCount = 0;
+  let skippedCount = 0;
+  const mistakesToSave = [];
+
+  for (const ans of attempt.answers) {
+    const q = qMap[ans.questionId.toString()];
+    if (!q) continue;
+
+    totalMarks += q.marks;
+
+    if (!ans.selectedOption || ans.selectedOption === '') {
+      skippedCount++;
+      ans.isCorrect = false;
+      continue;
+    }
+
+    const isCorrect = String(ans.selectedOption).trim().toLowerCase() === String(q.correct).trim().toLowerCase();
+    ans.isCorrect = isCorrect;
+
+    if (isCorrect) {
+      obtainedMarks += q.marks;
+      correctCount++;
+    } else {
+      obtainedMarks += q.negativeMarking;
+      wrongCount++;
+
+      mistakesToSave.push({
+        userId: req.user._id,
+        questionId: q._id,
+        subject: q.subject,
+        chapter: q.chapter,
+        selectedOption: ans.selectedOption,
+      });
+    }
+  }
+
+  attempt.totalMarks = totalMarks;
+  attempt.obtainedMarks = Math.max(0, obtainedMarks);
+  attempt.correct = correctCount;
+  attempt.wrong = wrongCount;
+  attempt.skipped = skippedCount;
+  attempt.accuracy = attempt.questions.length > 0 ? Math.round((correctCount / attempt.questions.length) * 100) : 0;
+  attempt.status = 'completed';
+
+  // Save mistakes
+  for (const m of mistakesToSave) {
+    await Mistake.findOneAndUpdate(
+      { userId: m.userId, questionId: m.questionId },
+      { $set: { subject: m.subject, chapter: m.chapter, selectedOption: m.selectedOption, revisited: false }, $inc: { attemptCount: 1 } },
+      { upsert: true }
+    );
+  }
+
+  // Award XP
+  const xpGained = calculateXP('QUIZ_CORRECT', { count: correctCount }) + calculateXP('QUIZ_ATTEMPT');
+  attempt.xpAwarded = xpGained;
+
+  const user = await User.findById(req.user._id);
+  if (user) {
+    user.xp += xpGained;
+    user.level = getLevelFromXP(user.xp);
+    await user.save();
+  }
+
+  await attempt.save();
+
+  res.json({
+    success: true,
+    message: 'Quiz auto-submitted successfully due to integrity action',
+    data: {
+      attemptId: attempt._id,
+      score: attempt.obtainedMarks,
+      accuracy: attempt.accuracy,
+      xpGained
+    }
+  });
+};
+
 module.exports = {
   getQuestions,
   startQuiz,
   saveAnswer,
   submitQuiz,
+  autoSubmitQuiz,
   getQuizResult,
   reportViolation,
   getAttempts,

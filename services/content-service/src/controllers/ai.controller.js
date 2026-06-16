@@ -56,7 +56,7 @@ const chatWithAI = async (req, res) => {
     `;
 
     let text = "";
-    const modelsToTry = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-3.5-flash"];
+    const modelsToTry = ["gemini-2.0-flash", "gemini-1.5-flash", "gemini-1.5-pro"];
     let lastError = null;
 
     for (const modelName of modelsToTry) {
@@ -76,8 +76,55 @@ const chatWithAI = async (req, res) => {
       }
     }
 
-    if (!text && lastError) {
-      throw lastError;
+    if (!text) {
+      console.warn("⚠️ All Gemini models failed. Falling back to database/mock explanation.");
+      
+      const explainMatch = message.toLowerCase().match(/explain question (\d+)/i);
+      if (explainMatch && attemptId) {
+        const questionNum = parseInt(explainMatch[1]);
+        const attempt = await QuizAttempt.findById(attemptId).populate("questions");
+        
+        if (attempt && attempt.questions[questionNum - 1]) {
+          const q = attempt.questions[questionNum - 1];
+          const userAns = attempt.answers.find(a => a.questionId.toString() === q._id.toString());
+          
+          let explanationText = `### 📚 Fallback Explanation for Question ${questionNum}\n\n`;
+          explanationText += `**Question:**\n> ${q.question}\n\n`;
+          
+          explanationText += `**Options:**\n`;
+          if (q.options) {
+            Object.entries(q.options).forEach(([key, val]) => {
+              if (val) {
+                explanationText += `- **Option ${key}:** ${val}\n`;
+              }
+            });
+          }
+          explanationText += `\n`;
+          
+          explanationText += `**Correct Answer:** Option **${q.correct}**\n\n`;
+          explanationText += `**Your Answer:** ${userAns ? `Option **${userAns.selectedOption || 'Not answered'}**` : 'Not answered'}\n`;
+          explanationText += `**Result:** ${userAns ? (userAns.isCorrect ? '✅ Correct' : '❌ Incorrect') : 'N/A'}\n\n`;
+          
+          explanationText += `---\n\n`;
+          explanationText += `### 💡 Detailed Solution:\n`;
+          if (q.explanation) {
+            explanationText += `${q.explanation}\n\n`;
+          } else {
+            explanationText += `*No detailed explanation was found in the database. Please review the core concept for "${attempt.chapter || 'this topic'}".*\n\n`;
+          }
+          
+          explanationText += `\n*Note: This is a local database fallback. The live AI Doubt Solver is currently unavailable (please verify the API Key in the server configuration).*`;
+          text = explanationText;
+        }
+      }
+      
+      if (!text) {
+        text = `### 🤖 Antigravity AI (Fallback Mode)\n\nHello! I am your JEE/NEET study mentor. Currently, the live AI Connection is offline. Here are some quick study tips for your prep:\n\n` +
+          `1. **Practice Regularly:** Daily consistency is the single most important factor for success in JEE & NEET.\n` +
+          `2. **Review Mistakes:** Analyze every incorrect answer carefully to understand where your logic faltered.\n` +
+          `3. **Master the Basics:** Make sure your fundamentals in physics, chemistry, and biology/math are solid before jumping to advanced problems.\n\n` +
+          `*Note: To resolve this error and enable live AI chat, please ask your administrator to configure a valid \`GEMINI_API_KEY\` in the \`.env\` file.*`;
+      }
     }
 
     res.json({ success: true, reply: text });

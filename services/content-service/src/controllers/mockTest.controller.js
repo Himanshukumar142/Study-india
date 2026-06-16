@@ -141,7 +141,8 @@ const startMockTest = async (req, res) => {
       attemptId: attempt._id,
       questions: safeQuestions,
       startTime: attempt.startTime,
-      duration: mockTest.duration
+      duration: mockTest.duration,
+      answers: attempt.answers
     }
   });
 };
