@@ -5,7 +5,7 @@ services:
     env: docker
     plan: free
     dockerContext: services/auth-service
-    dockerfilePath: Dockerfile
+    dockerfilePath: services/auth-service/Dockerfile
     envVars:
       - key: MONGO_URI
         sync: false
@@ -24,7 +24,7 @@ services:
     env: docker
     plan: free
     dockerContext: services/user-service
-    dockerfilePath: Dockerfile
+    dockerfilePath: services/user-service/Dockerfile
     envVars:
       - key: MONGO_URI
         sync: false
@@ -39,7 +39,7 @@ services:
     env: docker
     plan: free
     dockerContext: services/content-service
-    dockerfilePath: Dockerfile
+    dockerfilePath: services/content-service/Dockerfile
     envVars:
       - key: MONGO_URI
         sync: false
@@ -56,7 +56,7 @@ services:
     env: docker
     plan: free
     dockerContext: services/api-gateway
-    dockerfilePath: Dockerfile
+    dockerfilePath: services/api-gateway/Dockerfile
     ports:
       - port: 5000
         protocol: TCP
