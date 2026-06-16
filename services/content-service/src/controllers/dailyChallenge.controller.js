@@ -145,4 +145,87 @@ const getChallengeHistory = async (req, res) => {
   res.json({ success: true, data: attempts });
 };
 
-module.exports = { getTodayChallenge, submitDailyChallenge, getChallengeHistory };
+// ──────────────────────────────────────────────────────────────
+// ADMIN ENDPOINTS
+// ──────────────────────────────────────────────────────────────
+
+// GET /api/daily-challenge/admin/list   — list all challenges (admin)
+const adminListChallenges = async (req, res) => {
+  try {
+    const challenges = await DailyChallenge.find()
+      .sort({ date: -1 })
+      .limit(60)
+      .populate('questions', 'question subject chapter difficulty marks');
+    res.json({ success: true, data: challenges });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+// POST /api/daily-challenge/admin/create  — create or replace challenge for a date (admin)
+const adminCreateChallenge = async (req, res) => {
+  try {
+    const { date, questionIds, bonusXP, difficulty, subject } = req.body;
+    if (!date) return res.status(400).json({ success: false, message: 'date is required (YYYY-MM-DD)' });
+    if (!Array.isArray(questionIds) || questionIds.length === 0)
+      return res.status(400).json({ success: false, message: 'At least one question required' });
+
+    // Upsert — replace if exists
+    const challenge = await DailyChallenge.findOneAndUpdate(
+      { date },
+      {
+        date,
+        questions: questionIds,
+        bonusXP: bonusXP || 50,
+        difficulty: difficulty || 'mixed',
+        subject: subject || 'Mixed',
+        participants: [],
+      },
+      { upsert: true, new: true, setDefaultsOnInsert: true }
+    );
+
+    const populated = await DailyChallenge.findById(challenge._id)
+      .populate('questions', 'question subject chapter difficulty marks');
+
+    res.status(201).json({ success: true, data: populated, message: `Challenge for ${date} saved!` });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+// DELETE /api/daily-challenge/admin/:date  — delete a specific day's challenge
+const adminDeleteChallenge = async (req, res) => {
+  try {
+    await DailyChallenge.findOneAndDelete({ date: req.params.date });
+    res.json({ success: true, message: `Challenge for ${req.params.date} deleted` });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+// GET /api/daily-challenge/admin/:date/leaderboard
+const adminChallengeLeaderboard = async (req, res) => {
+  try {
+    const attempts = await QuizAttempt.find({
+      subject: 'Daily Challenge',
+      chapter: req.params.date,
+      status: 'completed',
+    })
+      .populate('userId', 'name email xp level')
+      .sort({ obtainedMarks: -1, timeTakenSeconds: 1 })
+      .limit(50);
+    res.json({ success: true, data: attempts });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+module.exports = {
+  getTodayChallenge,
+  submitDailyChallenge,
+  getChallengeHistory,
+  adminListChallenges,
+  adminCreateChallenge,
+  adminDeleteChallenge,
+  adminChallengeLeaderboard,
+};

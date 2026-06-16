@@ -10,7 +10,7 @@ const morgan = require('morgan');
 
 const connectDB = require('./src/config/db');
 const errorHandler = require('./src/middleware/errorHandler.middleware');
-const { aiLimiter, quizLimiter } = require('./src/middleware/rateLimiter.middleware');
+const { aiLimiter } = require('./src/middleware/rateLimiter.middleware');
 
 require('./src/models/User.model');
 require('./src/models/Badge.model');
@@ -70,7 +70,7 @@ app.get('/api/content/health', (req, res) => {
   res.json({ status: 'OK', service: 'content-service', timestamp: new Date().toISOString() });
 });
 app.use('/api/content', contentRoutes);
-app.use('/api/quizzes', quizLimiter, quizRoutes);
+app.use('/api/quizzes', quizRoutes);
 app.use('/api/mistakes', mistakeRoutes);
 app.use('/api/bookmarks', bookmarkRoutes);
 app.use('/api/sessions', sessionRoutes);

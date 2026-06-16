@@ -469,6 +469,39 @@ const autoSubmitQuiz = async (req, res) => {
   });
 };
 
+// PATCH /api/quizzes/questions/:id — admin update question
+const updateQuestion = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const data = { ...req.body };
+    if (data.difficulty) data.difficulty = data.difficulty.toLowerCase();
+    
+    const q = await Question.findByIdAndUpdate(id, data, { new: true });
+    if (!q) {
+      return res.status(404).json({ success: false, message: 'Question not found' });
+    }
+    
+    res.json({ success: true, data: q, message: 'Question updated successfully' });
+  } catch (err) {
+    res.status(422).json({ success: false, message: err.message });
+  }
+};
+
+// DELETE /api/quizzes/questions/:id — admin delete question
+const deleteQuestion = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const q = await Question.findByIdAndDelete(id);
+    if (!q) {
+      return res.status(404).json({ success: false, message: 'Question not found' });
+    }
+    
+    res.json({ success: true, data: q, message: 'Question deleted successfully' });
+  } catch (err) {
+    res.status(422).json({ success: false, message: err.message });
+  }
+};
+
 module.exports = {
   getQuestions,
   startQuiz,
@@ -479,5 +512,7 @@ module.exports = {
   reportViolation,
   getAttempts,
   createQuestion,
-  createQuestionsBulk
+  createQuestionsBulk,
+  updateQuestion,
+  deleteQuestion
 };

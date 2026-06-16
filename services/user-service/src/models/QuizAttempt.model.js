@@ -15,7 +15,7 @@ const quizAttemptSchema = new mongoose.Schema(
         timeTakenSeconds: { type: Number, default: 0 },
       },
     ],
-    mode: { type: String, enum: ['practice', 'test', 'exam'], default: 'practice' },
+    mode: { type: String, enum: ['practice', 'test', 'exam', 'challenge', 'ai'], default: 'practice' },
     status: { type: String, enum: ['in-progress', 'completed'], default: 'in-progress' },
     totalMarks: { type: Number, default: 0 },
     obtainedMarks: { type: Number, default: 0 },
