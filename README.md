@@ -1,3 +1,4 @@
+[![Production CI/CD Pipeline](https://github.com/Himanshukumar142/Study-india/actions/workflows/deploy.yml/badge.svg)](https://github.com/Himanshukumar142/Study-india/actions/workflows/deploy.yml)
 # StudyQuest — JEE/NEET Gamified Learning Platform
 
 A production-ready full-stack learning platform for JEE and NEET aspirants with gamification, focus mode, quizzes, analytics, and more.
