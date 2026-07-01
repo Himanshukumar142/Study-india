@@ -7,7 +7,7 @@ A production-ready full-stack learning platform for JEE and NEET aspirants with 
 - **Backend**: Node.js + Express.js
 - **Database**: MongoDB Atlas
 - **File Storage**: Backblaze B2 (native API)
-- **Auth**: JWT access token + refresh token (HttpOnly cookie)
+- **Auth**: JWT access token + refresh token (HttpOnly cookie);
 
 ## Setup
 
